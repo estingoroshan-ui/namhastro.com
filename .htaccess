@@ -1,0 +1,20 @@
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Serve static Next.js assets
+  RewriteRule ^_next/(.*)$ _next/$1 [L]
+
+  # Serve images
+  RewriteRule ^images/(.*)$ images/$1 [L]
+
+  # Allow existing files and directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA / dynamic route fallback to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>

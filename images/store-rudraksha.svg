@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <rect width="400" height="300" fill="#FFF9F0"/>
+  <circle cx="200" cy="150" r="102" fill="#FDF3DC" stroke="#D4A84F" stroke-width="1.5"/>
+  <circle cx="200" cy="150" r="78" stroke="#D4A84F" stroke-width="1" stroke-dasharray="3 4"/>
+  <g fill="#7C3F19" stroke="#D4A84F" stroke-width="1.5">
+    <circle cx="200" cy="76" r="13"/><circle cx="252" cy="98" r="13"/><circle cx="274" cy="150" r="13"/>
+    <circle cx="252" cy="202" r="13"/><circle cx="200" cy="224" r="13"/><circle cx="148" cy="202" r="13"/>
+    <circle cx="126" cy="150" r="13"/><circle cx="148" cy="98" r="13"/>
+  </g>
+  <circle cx="200" cy="150" r="24" fill="#351044" stroke="#D4A84F" stroke-width="2"/>
+  <text x="200" y="157" text-anchor="middle" fill="#F2C96B" font-size="20" font-family="serif">ॐ</text>
+</svg>

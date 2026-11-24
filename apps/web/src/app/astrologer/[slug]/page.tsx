@@ -18,6 +18,10 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { AstrologerCard } from "@/components/marketplace/AstrologerCard";
 import { ASTROLOGER_SHOWCASE } from "@/data/marketplace";
 
+export function generateStaticParams() {
+  return ASTROLOGER_SHOWCASE.map((a) => ({ slug: a.slug }));
+}
+
 export default async function AstrologerProfilePage({
   params,
 }: {

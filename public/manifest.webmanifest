@@ -1,0 +1,10 @@
+{
+  "name": "NAMH ASTRO — Vedic Astrology & Spiritual Consultation",
+  "short_name": "NAMH ASTRO",
+  "description": "Enterprise astrology consultation marketplace connecting seekers with verified Vedic astrologers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#E86A17",
+  "orientation": "portrait-primary"
+}
