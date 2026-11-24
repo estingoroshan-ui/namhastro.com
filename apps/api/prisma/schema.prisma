@@ -53,92 +53,362 @@ enum LedgerEntryType {
 }
 
 model User {
-  id                 String        @id @default(cuid())
-  role               UserRole      @default(CUSTOMER)
-  status             AccountStatus @default(PENDING_VERIFICATION)
-  fullName           String        @db.VarChar(120)
-  email              String?       @unique @db.VarChar(191)
-  emailVerifiedAt    DateTime?
-  phoneE164          String?       @unique @db.VarChar(20)
-  phoneVerifiedAt    DateTime?
-  passwordHash       String?       @db.VarChar(255)
-  preferredLanguage  String        @default("en") @db.VarChar(16)
-  mfaEnabled         Boolean       @default(false)
-  termsAcceptedAt    DateTime?
-  lastLoginAt        DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                   String        @id @default(cuid())
+  role                 UserRole      @default(CUSTOMER)
+  status               AccountStatus @default(PENDING_VERIFICATION)
+  fullName             String        @db.VarChar(120)
+  email                String?       @unique @db.VarChar(191)
+  emailVerifiedAt      DateTime?
+  phoneE164            String?       @unique @db.VarChar(20)
+  phoneVerifiedAt      DateTime?
+  passwordHash         String?       @db.VarChar(255)
+  preferredLanguage    String        @default("en") @db.VarChar(16)
+  mfaEnabled           Boolean       @default(false)
+  termsAcceptedAt      DateTime?
+  lastLoginAt          DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  wallet             Wallet?
-  astrologerProfile  AstrologerProfile?
-  auditLogs          AuditLog[]    @relation("AuditActor")
+  customerProfile      CustomerProfile?
+  wallet               Wallet?
+  astrologerProfile    AstrologerProfile?
+  authSessions         AuthSession[]
+  birthProfiles        BirthProfile[]
+  favourites           AstrologerFavourite[]
+  following            AstrologerFollower[]
+  availabilitySubs     AvailabilitySubscription[]
+  appointments         Appointment[]              @relation("CustomerAppointments")
+  consultationRequests ConsultationRequest[]      @relation("CustomerConsultationRequests")
+  supportTickets       SupportTicket[]            @relation("CustomerTickets")
+  sentMessages         SupportMessage[]           @relation("MessageSender")
+  notifications        Notification[]
+  notificationPref     NotificationPreference?
+  savedAddresses       SavedAddress[]
+  auditLogs            AuditLog[]                 @relation("AuditActor")
 
   @@index([role, status])
   @@map("users")
 }
 
-model AstrologerProfile {
-  id                    String             @id @default(cuid())
-  userId                String             @unique
-  slug                  String             @unique @db.VarChar(140)
-  displayName           String             @db.VarChar(120)
-  verificationStage     VerificationStage  @default(APPLIED)
-  availabilityStatus    AvailabilityStatus @default(OFFLINE)
-  chatEnabled           Boolean            @default(false)
-  audioEnabled          Boolean            @default(false)
-  videoEnabled          Boolean            @default(false)
-  experienceYears       Int                @default(0)
-  bio                   String?            @db.Text
-  qualifications        String?            @db.Text
-  chatRatePaise         Int                @default(0)
-  audioRatePaise        Int                @default(0)
-  videoRatePaise        Int                @default(0)
-  commissionBpsOverride Int?
-  avatarUrl             String?            @db.VarChar(512)
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+model CustomerProfile {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  avatarUrl             String?   @db.VarChar(512)
+  dateOfBirth           DateTime? @db.Date
+  timeOfBirth           String?   @db.VarChar(16)
+  isBirthTimeUnknown    Boolean   @default(false)
+  birthPlace            String?   @db.VarChar(191)
+  birthLatitude         Float?
+  birthLongitude        Float?
+  birthTimezone         String?   @default("Asia/Kolkata") @db.VarChar(64)
+  currentCity           String?   @db.VarChar(120)
+  gender                String?   @db.VarChar(20)
+  maritalStatus         String?   @db.VarChar(32)
+  consultationInterests Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customer_profiles")
+}
+
+model AuthSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @db.VarChar(255)
+  userAgent        String?   @db.VarChar(512)
+  ipAddress        String?   @db.VarChar(64)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
+}
+
+model OTPRequest {
+  id         String    @id @default(cuid())
+  phoneE164  String    @db.VarChar(20)
+  otpHash    String    @db.VarChar(255)
+  purpose    String    @default("LOGIN") @db.VarChar(32)
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  ipAddress  String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now())
+
+  @@index([phoneE164, purpose])
+  @@map("otp_requests")
+}
+
+model BirthProfile {
+  id                 String    @id @default(cuid())
+  userId             String
+  relation           String    @default("SELF") @db.VarChar(32)
+  fullName           String    @db.VarChar(120)
+  gender             String?   @db.VarChar(20)
+  dateOfBirth        DateTime  @db.Date
+  timeOfBirth        String?   @db.VarChar(16)
+  isBirthTimeUnknown Boolean   @default(false)
+  birthPlace         String    @db.VarChar(191)
+  latitude           Float?
+  longitude          Float?
+  timezone           String?   @default("Asia/Kolkata") @db.VarChar(64)
+  maritalStatus      String?   @db.VarChar(32)
+  isDefault          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+  @@map("birth_profiles")
+}
+
+model AstrologerProfile {
+  id                    String                     @id @default(cuid())
+  userId                String                     @unique
+  slug                  String                     @unique @db.VarChar(140)
+  displayName           String                     @db.VarChar(120)
+  verificationStage     VerificationStage          @default(APPLIED)
+  availabilityStatus    AvailabilityStatus         @default(OFFLINE)
+  chatEnabled           Boolean                    @default(false)
+  audioEnabled          Boolean                    @default(false)
+  videoEnabled          Boolean                    @default(false)
+  experienceYears       Int                        @default(0)
+  bio                   String?                    @db.Text
+  qualifications        String?                    @db.Text
+  chatRatePaise         Int                        @default(0)
+  audioRatePaise        Int                        @default(0)
+  videoRatePaise        Int                        @default(0)
+  commissionBpsOverride Int?
+  avatarUrl             String?                    @db.VarChar(512)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  user                  User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favourites            AstrologerFavourite[]
+  followers             AstrologerFollower[]
+  availabilitySubs      AvailabilitySubscription[]
+  appointments          Appointment[]
+  consultationRequests  ConsultationRequest[]
 
   @@index([verificationStage, availabilityStatus])
   @@map("astrologer_profiles")
 }
 
-model Wallet {
-  id                  String              @id @default(cuid())
-  userId              String              @unique
-  currency            String              @default("INR") @db.VarChar(3)
-  paidBalancePaise    BigInt              @default(0)
-  promoBalancePaise   BigInt              @default(0)
-  refundBalancePaise  BigInt              @default(0)
-  version             Int                 @default(1)
-  updatedAt           DateTime            @updatedAt
-  createdAt           DateTime            @default(now())
+model AstrologerFavourite {
+  id                  String            @id @default(cuid())
+  userId              String
+  astrologerProfileId String
+  createdAt           DateTime          @default(now())
 
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions        WalletTransaction[]
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, astrologerProfileId])
+  @@map("astrologer_favourites")
+}
+
+model AstrologerFollower {
+  id                  String            @id @default(cuid())
+  userId              String
+  astrologerProfileId String
+  createdAt           DateTime          @default(now())
+
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, astrologerProfileId])
+  @@map("astrologer_followers")
+}
+
+model AvailabilitySubscription {
+  id                  String            @id @default(cuid())
+  userId              String
+  astrologerProfileId String
+  channel             String            @default("PUSH") @db.VarChar(32)
+  notifiedAt          DateTime?
+  createdAt           DateTime          @default(now())
+
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, astrologerProfileId, channel])
+  @@map("availability_subscriptions")
+}
+
+model Appointment {
+  id                  String            @id @default(cuid())
+  customerId          String
+  astrologerProfileId String
+  birthProfileId      String?           @db.VarChar(64)
+  consultationType    String            @default("CHAT") @db.VarChar(32)
+  scheduledDate       DateTime          @db.Date
+  scheduledTimeSlot   String            @db.VarChar(32)
+  durationMinutes     Int               @default(15)
+  ratePaisePerMinute  Int
+  totalAmountPaise    BigInt
+  status              String            @default("PENDING") @db.VarChar(32)
+  notes               String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  customer            User              @relation("CustomerAppointments", fields: [customerId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, status])
+  @@index([astrologerProfileId, scheduledDate, scheduledTimeSlot])
+  @@map("appointments")
+}
+
+model ConsultationRequest {
+  id                  String            @id @default(cuid())
+  customerId          String
+  astrologerProfileId String
+  birthProfileId      String?           @db.VarChar(64)
+  type                String            @default("CHAT") @db.VarChar(32)
+  status              String            @default("INITIATED") @db.VarChar(32)
+  ratePaisePerMinute  Int
+  createdAt           DateTime          @default(now())
+
+  customer            User              @relation("CustomerConsultationRequests", fields: [customerId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, status])
+  @@map("consultation_requests")
+}
+
+model Wallet {
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  currency           String              @default("INR") @db.VarChar(3)
+  paidBalancePaise   BigInt              @default(0)
+  promoBalancePaise  BigInt              @default(0)
+  refundBalancePaise BigInt              @default(0)
+  version            Int                 @default(1)
+  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions       WalletTransaction[]
 
   @@map("wallets")
 }
 
 model WalletTransaction {
-  id                  String          @id @default(cuid())
-  walletId            String
-  idempotencyKey      String          @unique @db.VarChar(128)
-  type                LedgerEntryType
-  amountPaise         BigInt
-  balanceAfterPaise   BigInt
-  referenceType       String?         @db.VarChar(64)
-  referenceId         String?         @db.VarChar(128)
-  description         String          @db.VarChar(255)
-  metadataJson        Json?
-  createdAt           DateTime        @default(now())
+  id                String          @id @default(cuid())
+  walletId          String
+  idempotencyKey    String          @unique @db.VarChar(128)
+  type              LedgerEntryType
+  amountPaise       BigInt
+  balanceAfterPaise BigInt
+  referenceType     String?         @db.VarChar(64)
+  referenceId       String?         @db.VarChar(128)
+  description       String          @db.VarChar(255)
+  metadataJson      Json?
+  createdAt         DateTime        @default(now())
 
-  wallet              Wallet          @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  wallet            Wallet          @relation(fields: [walletId], references: [id], onDelete: Restrict)
 
   @@index([walletId, createdAt])
   @@index([referenceType, referenceId])
   @@map("wallet_transactions")
+}
+
+model SupportTicket {
+  id                    String           @id @default(cuid())
+  ticketNumber          String           @unique @db.VarChar(32)
+  customerId            String
+  category              String           @db.VarChar(64)
+  subject               String           @db.VarChar(191)
+  description           String           @db.Text
+  priority              String           @default("NORMAL") @db.VarChar(20)
+  status                String           @default("OPEN") @db.VarChar(32)
+  relatedTransactionId  String?          @db.VarChar(128)
+  relatedConsultationId String?          @db.VarChar(128)
+  assignedStaffId       String?          @db.VarChar(64)
+  internalNotes         String?          @db.Text
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  customer              User             @relation("CustomerTickets", fields: [customerId], references: [id], onDelete: Cascade)
+  messages              SupportMessage[]
+
+  @@index([customerId, status])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id            String        @id @default(cuid())
+  ticketId      String
+  senderId      String
+  senderRole    UserRole      @default(CUSTOMER)
+  message       String        @db.Text
+  attachmentUrl String?       @db.VarChar(512)
+  createdAt     DateTime      @default(now())
+
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender        User          @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  category  String    @default("GENERAL") @db.VarChar(32)
+  title     String    @db.VarChar(191)
+  body      String    @db.Text
+  actionUrl String?   @db.VarChar(255)
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  emailEnabled    Boolean  @default(true)
+  smsEnabled      Boolean  @default(true)
+  pushEnabled     Boolean  @default(true)
+  whatsappEnabled Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model SavedAddress {
+  id            String   @id @default(cuid())
+  userId        String
+  label         String   @default("HOME") @db.VarChar(32)
+  recipientName String   @db.VarChar(120)
+  phoneE164     String   @db.VarChar(20)
+  streetAddress String   @db.Text
+  landmark      String?  @db.VarChar(120)
+  city          String   @db.VarChar(80)
+  state         String   @db.VarChar(80)
+  postalCode    String   @db.VarChar(16)
+  country       String   @default("India") @db.VarChar(64)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+  @@map("saved_addresses")
 }
 
 model SystemSetting {

@@ -26,6 +26,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { NamhAstroLogo } from "@/components/icons/ZodiacIcons";
 
 const SERVICE_NAV = [
@@ -45,6 +46,7 @@ const SERVICE_NAV = [
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, openLoginModal } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [language, setLanguage] = useState("EN");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -126,14 +128,26 @@ export function SiteHeader() {
 
             <Link href="/account/wallet" className="wallet-btn" aria-label="Wallet Balance">
               <Wallet size={15} />
-              <span>₹0.00</span>
+              <span>₹{user?.wallet ? user.wallet.totalBalanceInr.toFixed(2) : "0.00"}</span>
               <Plus size={13} />
             </Link>
 
-            <Link href="/account" className="login-btn">
-              <User size={15} />
-              <span>Login / Register</span>
-            </Link>
+            {user ? (
+              <Link href="/account" className="login-btn" title={`Signed in as ${user.fullName}`}>
+                <User size={15} />
+                <span>{user.fullName.split(" ")[0]}</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={openLoginModal}
+                className="login-btn"
+                style={{ border: 0, cursor: "pointer" }}
+              >
+                <User size={15} />
+                <span>Login / Register</span>
+              </button>
+            )}
 
             <button
               type="button"

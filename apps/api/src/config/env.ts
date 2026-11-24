@@ -11,6 +11,19 @@ const envSchema = z.object({
   APP_DOMAIN: z.string().url().default("https://namhastro.com"),
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(16)
+    .default("namhastro_jwt_access_super_secret_development_key_2026_vedic_wisdom_token_auth_32bytes"),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(16)
+    .default("namhastro_jwt_refresh_super_secret_development_key_2026_vedic_wisdom_token_auth_32bytes"),
+  OTP_PROVIDER_API_KEY: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

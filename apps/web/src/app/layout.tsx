@@ -5,6 +5,8 @@ import {
   Plus_Jakarta_Sans,
 } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -50,7 +52,12 @@ export default function RootLayout({
       lang="en"
       className={`${jakarta.variable} ${cormorant.variable} ${devanagari.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+          <AuthModal />
+        </AuthProvider>
+      </body>
     </html>
   );
 }
