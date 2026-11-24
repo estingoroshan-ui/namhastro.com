@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+build/
+out/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Private Uploads & Media
+storage/private/
+uploads/
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
