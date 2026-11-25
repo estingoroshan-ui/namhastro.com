@@ -40,8 +40,11 @@ export class RtcService {
    * Mint an ephemeral Agora RTC AccessToken2
    */
   static mintToken(params: MintTokenParams): MintTokenResult {
-    const appId = env.RTC_APP_ID || "5d066243097b4c148739c771cc1cdcd0";
-    const appCert = env.RTC_APP_CERTIFICATE || "1ee664578cb84cc1a73be4e4a27c8faf";
+    const appId = env.RTC_APP_ID;
+    const appCert = env.RTC_APP_CERTIFICATE;
+    if (!appId || !appCert) {
+      throw new Error("Missing Agora RTC credentials in environment configuration.");
+    }
     const channelName = params.channelName.trim();
     const expireSeconds = params.expireSeconds || 3600;
 

@@ -3,11 +3,21 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { RtcService } from "../services/rtc.service.js";
+import { FirebaseService } from "../services/firebase.service.js";
+import { env } from "../config/env.js";
 
 export const consultationsRouter = Router();
 
-// Test RTC Token generation (Phase A verification - non-deducting test)
+// Test RTC Token generation (Strictly restricted to non-production development environments or Admin)
 consultationsRouter.post("/test-rtc", async (req: Request, res: Response) => {
+  if (env.NODE_ENV === "production") {
+    res.status(403).json({
+      success: false,
+      error: "ENDPOINT_DISABLED_IN_PRODUCTION",
+      message: "The ephemeral RTC test endpoint is disabled in production.",
+    });
+    return;
+  }
   try {
     const { channelName = "test-channel", uid, role = "publisher" } = req.body;
     const tokenData = RtcService.mintToken({
@@ -122,14 +132,31 @@ consultationsRouter.post("/request", requireAuth, async (req: AuthenticatedReque
       data: { channelName },
     });
 
-    // Notify astrologer in notifications table
-    await prisma.notification.create({
+    // Notify astrologer via push notification and DB record
+    await FirebaseService.sendPush({
+      userId: astrologer.userId,
+      category: "INCOMING_CONSULTATION",
+      title: `Incoming ${type} Consultation Request`,
+      body: `${req.user?.fullName || "A customer"} has requested a ${type} consultation (${concern || "General inquiry"}).`,
+      actionUrl: `/partner?tab=requests&consultationId=${consultation.id}`,
       data: {
-        userId: astrologer.userId,
-        category: "INCOMING_CONSULTATION",
-        title: `Incoming ${type} Consultation Request`,
-        body: `${req.user?.fullName || "A customer"} has requested a ${type} consultation (${concern || "General inquiry"}).`,
-        actionUrl: `/partner?tab=requests&consultationId=${consultation.id}`,
+        consultationId: consultation.id,
+        type,
+        ratePaisePerMinute: String(ratePaise),
+      },
+    });
+
+    const maxDurationMinutes = Math.floor(Number(totalBalancePaise) / ratePaise);
+    const maxDurationSeconds = maxDurationMinutes * 60;
+
+    // Create Consultation Hold on customer wallet
+    await prisma.consultationHold.create({
+      data: {
+        consultationId: consultation.id,
+        customerId,
+        ratePaisePerMinute: ratePaise,
+        heldAmountPaise: BigInt(ratePaise * Math.min(maxDurationMinutes, 5)),
+        status: "ACTIVE",
       },
     });
 
@@ -143,6 +170,7 @@ consultationsRouter.post("/request", requireAuth, async (req: AuthenticatedReque
         ratePaisePerMinute: ratePaise,
         expiresAt,
         timeoutSeconds: 30,
+        maxDurationSeconds,
       },
     });
   } catch (error: any) {
@@ -203,14 +231,16 @@ consultationsRouter.post("/:id/accept", requireAuth, async (req: AuthenticatedRe
       role: "publisher",
     });
 
-    // Notify customer
-    await prisma.notification.create({
+    // Notify customer via push notification
+    await FirebaseService.sendPush({
+      userId: consultation.customerId,
+      category: "CONSULTATION_ACCEPTED",
+      title: "Consultation Accepted!",
+      body: `${consultation.astrologerProfile.displayName} accepted your consultation. Joining room now.`,
+      actionUrl: `/consultation/call?id=${consultation.id}`,
       data: {
-        userId: consultation.customerId,
-        category: "CONSULTATION_ACCEPTED",
-        title: "Consultation Accepted!",
-        body: `${consultation.astrologerProfile.displayName} accepted your consultation. Joining room now.`,
-        actionUrl: `/consultation/call?id=${consultation.id}`,
+        consultationId: consultation.id,
+        channelName,
       },
     });
 
@@ -266,15 +296,13 @@ consultationsRouter.post("/:id/reject", requireAuth, async (req: AuthenticatedRe
       data: { availabilityStatus: "ONLINE" },
     });
 
-    // Notify customer
-    await prisma.notification.create({
-      data: {
-        userId: consultation.customerId,
-        category: "CONSULTATION_REJECTED",
-        title: "Consultation Unavailable",
-        body: `${consultation.astrologerProfile.displayName} was unable to accept. No money was deducted.`,
-        actionUrl: "/astrologers",
-      },
+    // Notify customer via push notification
+    await FirebaseService.sendPush({
+      userId: consultation.customerId,
+      category: "CONSULTATION_REJECTED",
+      title: "Consultation Unavailable",
+      body: `${consultation.astrologerProfile.displayName} was unable to accept. No money was deducted.`,
+      actionUrl: "/astrologers",
     });
 
     res.json({ success: true, message: "Consultation rejected successfully" });
@@ -304,6 +332,15 @@ consultationsRouter.post("/:id/rtc-token", requireAuth, async (req: Authenticate
 
     if (!isCustomer && !isAstrologer) {
       res.status(403).json({ success: false, error: "UNAUTHORIZED", message: "Not a participant in this consultation" });
+      return;
+    }
+
+    if (["COMPLETED", "ENDED", "CANCELLED", "REJECTED", "EXPIRED"].includes(consultation.status)) {
+      res.status(400).json({
+        success: false,
+        error: "CONSULTATION_INACTIVE",
+        message: `Cannot issue RTC token for a consultation with status ${consultation.status}`,
+      });
       return;
     }
 
@@ -354,32 +391,180 @@ consultationsRouter.post("/:id/end", requireAuth, async (req: AuthenticatedReque
       return;
     }
 
-    const durationSeconds = consultation.acceptedAt
+    if (["COMPLETED", "ENDED", "CANCELLED", "REJECTED", "EXPIRED"].includes(consultation.status)) {
+      res.status(400).json({
+        success: false,
+        error: "CONSULTATION_INACTIVE",
+        message: `Cannot issue RTC token for a consultation with status ${consultation.status}`,
+      });
+      return;
+    }
+
+    const reportedDuration = req.body?.durationSeconds !== undefined ? Number(req.body.durationSeconds) : null;
+    const durationSeconds = reportedDuration !== null && !isNaN(reportedDuration) && reportedDuration >= 0
+      ? reportedDuration
+      : consultation.acceptedAt
       ? Math.max(1, Math.floor((Date.now() - consultation.acceptedAt.getTime()) / 1000))
-      : 0;
+      : 60;
 
-    await prisma.consultationRequest.update({
-      where: { id: consultationId },
-      data: {
-        status: "COMPLETED",
-        endedAt: new Date(),
+    const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+    const ratePaise = consultation.ratePaisePerMinute;
+    const totalChargePaise = BigInt(billableMinutes * ratePaise);
+
+    // Atomic financial settlement transaction
+    const settlement = await prisma.$transaction(async (tx) => {
+      // 1. Update consultation
+      await tx.consultationRequest.update({
+        where: { id: consultationId },
+        data: {
+          status: "COMPLETED",
+          endedAt: new Date(),
+          durationSeconds,
+        },
+      });
+
+      // 2. Fetch customer wallet
+      let customerWallet = await tx.wallet.findUnique({
+        where: { userId: consultation.customerId },
+      });
+
+      if (!customerWallet) {
+        customerWallet = await tx.wallet.create({
+          data: {
+            userId: consultation.customerId,
+            currency: "INR",
+            paidBalancePaise: 0n,
+            promoBalancePaise: 0n,
+          },
+        });
+      }
+
+      // 3. Deduct from promo first, then paid
+      let remainingToDeduct = totalChargePaise;
+      let promoDeduction = 0n;
+      let paidDeduction = 0n;
+
+      if (customerWallet.promoBalancePaise >= remainingToDeduct) {
+        promoDeduction = remainingToDeduct;
+        remainingToDeduct = 0n;
+      } else {
+        promoDeduction = customerWallet.promoBalancePaise;
+        remainingToDeduct -= promoDeduction;
+      }
+
+      if (customerWallet.paidBalancePaise >= remainingToDeduct) {
+        paidDeduction = remainingToDeduct;
+        remainingToDeduct = 0n;
+      } else {
+        paidDeduction = customerWallet.paidBalancePaise;
+        remainingToDeduct = 0n;
+      }
+
+      const totalDeducted = promoDeduction + paidDeduction;
+      const newCustomerPaid = customerWallet.paidBalancePaise - paidDeduction;
+      const newCustomerPromo = customerWallet.promoBalancePaise - promoDeduction;
+
+      await tx.wallet.update({
+        where: { id: customerWallet.id },
+        data: {
+          paidBalancePaise: newCustomerPaid,
+          promoBalancePaise: newCustomerPromo,
+          version: { increment: 1 },
+        },
+      });
+
+      // 4. Double-entry transaction for customer
+      const customerTxIdempotency = `CONSULT-${consultation.id}-${Date.now()}`;
+      await tx.walletTransaction.create({
+        data: {
+          walletId: customerWallet.id,
+          idempotencyKey: customerTxIdempotency,
+          type: "CONSULTATION_DEBIT",
+          amountPaise: totalDeducted,
+          balanceAfterPaise: newCustomerPaid + newCustomerPromo,
+          referenceType: "CONSULTATION",
+          referenceId: consultation.id,
+          description: `${consultation.type} consultation with ${consultation.astrologerProfile.displayName} (${billableMinutes} mins)`,
+          metadataJson: {
+            durationSeconds,
+            billableMinutes,
+            ratePaisePerMinute: ratePaise,
+            paidDeduction: Number(paidDeduction),
+            promoDeduction: Number(promoDeduction),
+          },
+        },
+      });
+
+      // 5. Credit astrologer partner share (80% net after 20% platform commission)
+      const astrologerEarningPaise = BigInt(Math.round(Number(totalDeducted) * 0.80));
+      let astrologerWallet = await tx.wallet.findUnique({
+        where: { userId: consultation.astrologerProfile.userId },
+      });
+
+      if (!astrologerWallet) {
+        astrologerWallet = await tx.wallet.create({
+          data: {
+            userId: consultation.astrologerProfile.userId,
+            currency: "INR",
+            paidBalancePaise: 0n,
+            promoBalancePaise: 0n,
+          },
+        });
+      }
+
+      const newAstrologerBalance = astrologerWallet.paidBalancePaise + astrologerEarningPaise;
+      await tx.wallet.update({
+        where: { id: astrologerWallet.id },
+        data: {
+          paidBalancePaise: newAstrologerBalance,
+          version: { increment: 1 },
+        },
+      });
+
+      const astrologerTxIdempotency = `EARN-${consultation.id}-${Date.now()}`;
+      await tx.walletTransaction.create({
+        data: {
+          walletId: astrologerWallet.id,
+          idempotencyKey: astrologerTxIdempotency,
+          type: "WALLET_RECHARGE",
+          amountPaise: astrologerEarningPaise,
+          balanceAfterPaise: newAstrologerBalance,
+          referenceType: "CONSULTATION_EARNING",
+          referenceId: consultation.id,
+          description: `Earnings for ${consultation.type} consultation #${consultation.id.slice(-6)} (${billableMinutes} mins)`,
+        },
+      });
+
+      // 6. Settle ConsultationHold
+      await tx.consultationHold.updateMany({
+        where: { consultationId: consultation.id },
+        data: {
+          status: "SETTLED",
+          settledAmountPaise: totalDeducted,
+          settledAt: new Date(),
+        },
+      });
+
+      // 7. Reset astrologer status to ONLINE
+      await tx.astrologerProfile.update({
+        where: { id: consultation.astrologerProfileId },
+        data: { availabilityStatus: "ONLINE" },
+      });
+
+      return {
+        consultationId,
         durationSeconds,
-      },
-    });
-
-    // Reset astrologer status to ONLINE
-    await prisma.astrologerProfile.update({
-      where: { id: consultation.astrologerProfileId },
-      data: { availabilityStatus: "ONLINE" },
+        billableMinutes,
+        totalChargeInr: Number(totalDeducted) / 100,
+        customerRemainingBalanceInr: Number(newCustomerPaid + newCustomerPromo) / 100,
+        astrologerEarningInr: Number(astrologerEarningPaise) / 100,
+      };
     });
 
     res.json({
       success: true,
-      message: "Consultation completed",
-      data: {
-        consultationId,
-        durationSeconds,
-      },
+      message: "Consultation completed and settled successfully",
+      data: settlement,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message || "Failed to end consultation" });

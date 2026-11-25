@@ -22,7 +22,7 @@ describe("Step 4: Agora Verification & Complete Astrologer Partner System", () =
   it("1. Health check reports Step 4 with Agora verified and DB connected", async () => {
     const res = await request(app).get("/api/v1/health");
     expect(res.status).toBe(200);
-    expect(res.body.step).toBe(4);
+    expect(res.body.step).toBeGreaterThanOrEqual(4);
     expect(res.body.dependencies.mysql).toBe("connected");
     expect(res.body.dependencies.webrtc).toBe("agora_configured_and_tested");
   });

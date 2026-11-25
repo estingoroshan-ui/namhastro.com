@@ -200,6 +200,35 @@ async function main() {
     }
   }
 
+  // 4. Seed Recharge Packages
+  const defaultPackages = [
+    { code: "RECHARGE_100", name: "Starter Pack", amountInr: 100, bonusPaise: BigInt(0), isPopular: false, displayOrder: 1 },
+    { code: "RECHARGE_200", name: "Standard Pack", amountInr: 200, bonusPaise: BigInt(0), isPopular: false, displayOrder: 2 },
+    { code: "RECHARGE_500", name: "Most Popular Pack", amountInr: 500, bonusPaise: BigInt(5000), isPopular: true, badgeText: "10% Extra", displayOrder: 3 },
+    { code: "RECHARGE_1000", name: "Vedic Wisdom Pack", amountInr: 1000, bonusPaise: BigInt(15000), isPopular: false, badgeText: "15% Extra", displayOrder: 4 },
+    { code: "RECHARGE_2000", name: "Premium Devotee Pack", amountInr: 2000, bonusPaise: BigInt(40000), isPopular: false, badgeText: "20% Extra", displayOrder: 5 },
+    { code: "RECHARGE_5000", name: "VIP Royal Astro Pack", amountInr: 5000, bonusPaise: BigInt(125000), isPopular: false, badgeText: "25% Extra", displayOrder: 6 },
+  ];
+
+  for (const pkg of defaultPackages) {
+    const existing = await prisma.rechargePackage.findUnique({ where: { code: pkg.code } });
+    if (!existing) {
+      await prisma.rechargePackage.create({
+        data: {
+          code: pkg.code,
+          name: pkg.name,
+          amountInr: pkg.amountInr,
+          amountPaise: BigInt(pkg.amountInr * 100),
+          bonusPaise: pkg.bonusPaise,
+          isPopular: pkg.isPopular,
+          badgeText: pkg.badgeText || null,
+          displayOrder: pkg.displayOrder,
+        },
+      });
+      console.log(`[NAMH ASTRO] Seeded recharge package: ${pkg.name} (₹${pkg.amountInr})`);
+    }
+  }
+
   console.log("[NAMH ASTRO] Database seed completed successfully.");
 }
 

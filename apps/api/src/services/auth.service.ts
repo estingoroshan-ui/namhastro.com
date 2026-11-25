@@ -42,8 +42,14 @@ export class AuthService {
     return crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(storedHash));
   }
 
-  static generateAccessToken(payload: TokenPayload): string {
-    return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
+  static generateAccessToken(payload: { userId?: string; id?: string; role: string; phoneE164?: string | null; email?: string | null }): string {
+    const normalized: TokenPayload = {
+      userId: payload.userId || payload.id || "",
+      role: payload.role,
+      phoneE164: payload.phoneE164,
+      email: payload.email,
+    };
+    return jwt.sign(normalized, env.JWT_ACCESS_SECRET, {
       expiresIn: "15m",
       issuer: "namhastro-auth",
     });

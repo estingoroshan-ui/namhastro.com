@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware.js";
+import { FirebaseService } from "../services/firebase.service.js";
 
 export const partnerRouter = Router();
 
@@ -533,6 +534,22 @@ partnerRouter.post("/withdraw", requireAuth, async (req: AuthenticatedRequest, r
         status: withdrawal.status,
       },
     });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 10. Register Device Token (FCM Push Notifications)
+partnerRouter.post("/device-token", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { token, platform = "web", deviceName } = req.body;
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ success: false, error: "INVALID_TOKEN", message: "FCM device token is required" });
+      return;
+    }
+    const record = await FirebaseService.registerToken(userId, token, platform, deviceName);
+    res.json({ success: true, message: "Device token registered successfully", data: record });
   } catch (error: any) {
     res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
   }

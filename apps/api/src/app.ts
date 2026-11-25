@@ -18,6 +18,7 @@ import { astrologersRouter } from "./routes/astrologers.routes.js";
 import { partnerRouter } from "./routes/partner.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { consultationsRouter } from "./routes/consultations.routes.js";
+import { walletRouter } from "./routes/wallet.routes.js";
 import { prisma } from "./db.js";
 
 export interface HealthDependencies {
@@ -58,7 +59,7 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 4,
+      step: 5,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
@@ -66,7 +67,7 @@ export function createApp(deps: HealthDependencies = {}) {
       dependencies: {
         mysql: databaseStatus,
         redis: env.REDIS_URL ? "configured_pending_step_6" : "unconfigured",
-        razorpay: "unconfigured_pending_step_8",
+        razorpay: env.RAZORPAY_KEY_ID ? "configured_and_active" : "simulation_mode",
         webrtc: "agora_configured_and_tested",
         firebase: "web_configured_service_account_pending",
         otpProvider: env.OTP_PROVIDER_API_KEY ? "configured" : "test_mode_active",
@@ -119,6 +120,10 @@ export function createApp(deps: HealthDependencies = {}) {
         "SavedAddress",
         "SystemSetting",
         "AuditLog",
+        "RechargePackage",
+        "PaymentOrder",
+        "GstInvoice",
+        "ConsultationHold",
       ],
     });
   });
@@ -142,6 +147,7 @@ export function createApp(deps: HealthDependencies = {}) {
   app.use("/api/v1/partner", partnerRouter);
   app.use("/api/v1/admin", adminRouter);
   app.use("/api/v1/consultations", consultationsRouter);
+  app.use("/api/v1/wallet", walletRouter);
 
   // 404 Fallback
   app.use((_req, res) => {

@@ -50,6 +50,8 @@ enum LedgerEntryType {
   STORE_PAYMENT
   REFUND_CREDIT
   ADMIN_ADJUSTMENT
+  CONSULTATION_HOLD
+  HOLD_RELEASE
 }
 
 model User {
@@ -87,6 +89,8 @@ model User {
   auditLogs            AuditLog[]                 @relation("AuditActor")
   astrologerApplications AstrologerApplication[]
   deviceTokens         DeviceToken[]
+  paymentOrders        PaymentOrder[]
+  gstInvoices          GstInvoice[]
 
   @@index([role, status])
   @@map("users")
@@ -655,4 +659,90 @@ model DeviceToken {
 
   @@index([userId, platform])
   @@map("device_tokens")
+}
+
+model RechargePackage {
+  id           String         @id @default(cuid())
+  code         String         @unique @db.VarChar(64)
+  name         String         @db.VarChar(128)
+  amountInr    Int
+  amountPaise  BigInt
+  bonusPaise   BigInt         @default(0)
+  isPopular    Boolean        @default(false)
+  badgeText    String?        @db.VarChar(64)
+  displayOrder Int            @default(0)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+
+  orders       PaymentOrder[]
+
+  @@map("recharge_packages")
+}
+
+model PaymentOrder {
+  id                String           @id @default(cuid())
+  orderNumber       String           @unique @db.VarChar(64)
+  userId            String
+  rechargePackageId String?
+  gateway           String           @default("RAZORPAY") @db.VarChar(32)
+  gatewayOrderId    String?          @unique @db.VarChar(128)
+  gatewayPaymentId  String?          @db.VarChar(128)
+  gatewaySignature  String?          @db.VarChar(255)
+  amountPaise       BigInt
+  taxablePaise      BigInt
+  gstPaise          BigInt           @default(0)
+  promoBonusPaise   BigInt           @default(0)
+  currency          String           @default("INR") @db.VarChar(3)
+  status            String           @default("PENDING") @db.VarChar(32)
+  failureReason     String?          @db.VarChar(255)
+  metadataJson      Json?
+  paidAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rechargePackage   RechargePackage? @relation(fields: [rechargePackageId], references: [id], onDelete: SetNull)
+  invoice           GstInvoice?
+
+  @@index([userId, status])
+  @@index([gatewayOrderId])
+  @@map("payment_orders")
+}
+
+model GstInvoice {
+  id                 String       @id @default(cuid())
+  invoiceNumber      String       @unique @db.VarChar(64)
+  orderId            String       @unique
+  userId             String
+  customerName       String       @db.VarChar(128)
+  customerGstin      String?      @db.VarChar(32)
+  sacCode            String       @default("998399") @db.VarChar(16)
+  taxableAmountPaise BigInt
+  cgstPaise          BigInt       @default(0)
+  sgstPaise          BigInt       @default(0)
+  igstPaise          BigInt       @default(0)
+  totalAmountPaise   BigInt
+  pdfUrl             String?      @db.VarChar(512)
+  issuedAt           DateTime     @default(now())
+
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order              PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("gst_invoices")
+}
+
+model ConsultationHold {
+  id                 String    @id @default(cuid())
+  consultationId     String    @unique
+  customerId         String
+  ratePaisePerMinute Int
+  heldAmountPaise    BigInt
+  settledAmountPaise BigInt    @default(0)
+  status             String    @default("ACTIVE") @db.VarChar(32)
+  createdAt          DateTime  @default(now())
+  settledAt          DateTime?
+
+  @@index([customerId, status])
+  @@map("consultation_holds")
 }

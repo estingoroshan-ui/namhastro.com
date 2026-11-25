@@ -32,6 +32,10 @@ const envSchema = z.object({
   FIREBASE_API_KEY: z.string().optional(),
   FIREBASE_AUTH_DOMAIN: z.string().optional(),
   FIREBASE_APP_ID: z.string().optional(),
+  FIREBASE_SERVICE_ACCOUNT_KEY: z.string().optional(),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
