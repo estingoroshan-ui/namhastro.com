@@ -64,6 +64,35 @@ export class BillingService {
   }
 
   /**
+   * Record a distinct billing segment when call modality upgrades (e.g. Audio -> Video)
+   */
+  static async recordBillingSegment(params: {
+    consultationId: string;
+    segmentIndex: number;
+    callType: string;
+    ratePaisePerMinute: number;
+    startSeconds: number;
+    endSeconds: number;
+  }): Promise<any> {
+    const durationSeconds = Math.max(0, params.endSeconds - params.startSeconds);
+    const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+    const amountPaise = BigInt(billableMinutes * params.ratePaisePerMinute);
+
+    return prisma.consultationBillingSegment.create({
+      data: {
+        consultationId: params.consultationId,
+        segmentIndex: params.segmentIndex,
+        callType: params.callType,
+        ratePaisePerMinute: params.ratePaisePerMinute,
+        startSeconds: params.startSeconds,
+        endSeconds: params.endSeconds,
+        durationSeconds,
+        amountPaise,
+      },
+    });
+  }
+
+  /**
    * Idempotent Atomic Settlement & Double-Entry Financial Ledger
    */
   static async settleConsultation(params: {
@@ -80,6 +109,7 @@ export class BillingService {
         astrologerProfile: { include: { user: true } },
         customer: true,
         billingRecord: true,
+        billingSegments: { orderBy: { segmentIndex: "asc" } },
       },
     });
 
@@ -108,12 +138,33 @@ export class BillingService {
       };
     }
 
-    const { billableMinutes, totalCostPaise } = this.calculateCost(
-      durationSeconds,
-      consultation.ratePaisePerMinute
-    );
+    // Multi-segment or single-segment total cost calculation
+    let billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+    let totalCostPaise = 0n;
 
-    const commissionPercent = 20; // 20% platform commission
+    if (consultation.billingSegments && consultation.billingSegments.length > 0) {
+      // Sum existing frozen segments
+      let segmentMinutes = 0;
+      for (const seg of consultation.billingSegments) {
+        totalCostPaise += seg.amountPaise;
+        segmentMinutes += Math.max(1, Math.ceil(seg.durationSeconds / 60));
+      }
+
+      // Final active segment at current rate
+      const lastSegEnd = Math.max(...consultation.billingSegments.map((s) => s.endSeconds));
+      const remainingSeconds = Math.max(0, durationSeconds - lastSegEnd);
+      if (remainingSeconds > 0) {
+        const finalMinutes = Math.max(1, Math.ceil(remainingSeconds / 60));
+        totalCostPaise += BigInt(finalMinutes * consultation.ratePaisePerMinute);
+        segmentMinutes += finalMinutes;
+      }
+      billableMinutes = Math.max(1, segmentMinutes);
+    } else {
+      const single = this.calculateCost(durationSeconds, consultation.ratePaisePerMinute);
+      billableMinutes = single.billableMinutes;
+      totalCostPaise = single.totalCostPaise;
+    }
+
     const astrologerEarningsPaise = (totalCostPaise * 80n) / 100n;
     const platformCommissionPaise = totalCostPaise - astrologerEarningsPaise;
 
@@ -252,13 +303,22 @@ export class BillingService {
         },
       });
 
-      // 6. Reset astrologer status to ONLINE
+      // 6. Update RTC channel status if present
+      await tx.rTCChannel.updateMany({
+        where: { consultationId },
+        data: {
+          status: "ENDED",
+          endedAt: new Date(),
+        },
+      });
+
+      // 7. Reset astrologer status to ONLINE
       await tx.astrologerProfile.update({
         where: { id: consultation.astrologerProfileId },
         data: { availabilityStatus: "ONLINE" },
       });
 
-      // 7. Audit log transition
+      // 8. Audit log transition
       await tx.consultationStateHistory.create({
         data: {
           consultationId,
@@ -282,7 +342,7 @@ export class BillingService {
       body: `Your consultation with ${consultation.astrologerProfile.displayName} has ended. Charged: ₹${(Number(totalCostPaise) / 100).toFixed(2)}.`,
       actionUrl: `/consultation/history?id=${consultationId}`,
       data: { consultationId, billableMinutes: String(billableMinutes) },
-    });
+    }).catch(() => {});
 
     return {
       consultationId,
@@ -336,13 +396,22 @@ export class BillingService {
         },
       });
 
-      // 3. Reset astrologer to ONLINE if they were marked BUSY
+      // 3. Update RTC channel status if present
+      await tx.rTCChannel.updateMany({
+        where: { consultationId },
+        data: {
+          status: "ENDED",
+          endedAt: new Date(),
+        },
+      });
+
+      // 4. Reset astrologer to ONLINE if they were marked BUSY
       await tx.astrologerProfile.update({
         where: { id: consultation.astrologerProfileId },
         data: { availabilityStatus: "ONLINE" },
       });
 
-      // 4. Audit log
+      // 5. Audit log
       await tx.consultationStateHistory.create({
         data: {
           consultationId,

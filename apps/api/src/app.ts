@@ -22,6 +22,11 @@ import { walletRouter } from "./routes/wallet.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
 import { prisma } from "./db.js";
 
+// BigInt JSON serialization support
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 export interface HealthDependencies {
   checkDatabase?: () => Promise<"connected" | "disconnected" | "unconfigured">;
 }
@@ -60,12 +65,13 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 6,
+      step: 7,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
       uptimeSeconds: Math.floor(process.uptime()),
       dependencies: {
+        database: databaseStatus,
         mysql: databaseStatus,
         redis: env.REDIS_URL ? "configured" : "in_memory_cluster_adapter",
         websocket: "socket_io_realtime_configured",

@@ -4,6 +4,7 @@ import { AuthService } from "./auth.service.js";
 import { prisma } from "../db.js";
 import { BillingService } from "./billing.service.js";
 import { FirebaseService } from "./firebase.service.js";
+import { RtcService } from "./rtc.service.js";
 import { env } from "../config/env.js";
 
 interface ActiveSession {
@@ -13,6 +14,8 @@ interface ActiveSession {
   ratePaisePerMinute: number;
   maxDurationSeconds: number;
   startedAt: number;
+  customerRtcJoined: boolean;
+  astrologerRtcJoined: boolean;
   timerInterval?: NodeJS.Timeout;
 }
 
@@ -39,8 +42,9 @@ export function startConsultationTimer(params: {
   astrologerUserId: string;
   ratePaisePerMinute: number;
   maxDurationSeconds: number;
+  gateOnRtcJoin?: boolean;
 }): void {
-  const { consultationId, customerId, astrologerUserId, ratePaisePerMinute, maxDurationSeconds } = params;
+  const { consultationId, customerId, astrologerUserId, ratePaisePerMinute, maxDurationSeconds, gateOnRtcJoin = false } = params;
 
   if (activeSessions.has(consultationId)) {
     return;
@@ -54,10 +58,23 @@ export function startConsultationTimer(params: {
     ratePaisePerMinute,
     maxDurationSeconds,
     startedAt,
+    customerRtcJoined: !gateOnRtcJoin,
+    astrologerRtcJoined: !gateOnRtcJoin,
   };
 
   // Heartbeat every 5 seconds for authoritative server-side countdown
   const timer = setInterval(async () => {
+    // If waiting for RTC join gate and not both joined, do not decrement
+    if (gateOnRtcJoin && (!session.customerRtcJoined || !session.astrologerRtcJoined)) {
+      emitToConsultation(consultationId, "call:waiting_peer", {
+        consultationId,
+        customerJoined: session.customerRtcJoined,
+        astrologerJoined: session.astrologerRtcJoined,
+        message: "Waiting for both participants to establish Agora RTC connection before billing begins.",
+      });
+      return;
+    }
+
     const elapsedSeconds = Math.floor((Date.now() - session.startedAt) / 1000);
     const remainingSeconds = Math.max(0, session.maxDurationSeconds - elapsedSeconds);
     const billableMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60));
@@ -69,6 +86,7 @@ export function startConsultationTimer(params: {
       remainingSeconds,
       billableMinutes,
       currentChargeInr,
+      ratePaisePerMinute: session.ratePaisePerMinute,
     });
 
     // Low balance warnings at 3m (180s), 1m (60s), and 30s
@@ -102,6 +120,12 @@ export function startConsultationTimer(params: {
           reason: "BALANCE_EXHAUSTED",
           settlement,
         });
+
+        emitToConsultation(consultationId, "call:ended", {
+          consultationId,
+          reason: "BALANCE_EXHAUSTED",
+          settlement,
+        });
       } catch (err) {
         console.error(`[SocketService] Failed to auto-settle expired session ${consultationId}:`, err);
       }
@@ -110,6 +134,28 @@ export function startConsultationTimer(params: {
 
   session.timerInterval = timer;
   activeSessions.set(consultationId, session);
+}
+
+export function extendConsultationTimer(consultationId: string, additionalSeconds: number): void {
+  const session = activeSessions.get(consultationId);
+  if (session) {
+    session.maxDurationSeconds += additionalSeconds;
+    const elapsedSeconds = Math.floor((Date.now() - session.startedAt) / 1000);
+    const remainingSeconds = Math.max(0, session.maxDurationSeconds - elapsedSeconds);
+    emitToConsultation(consultationId, "consultation:recharge_applied", {
+      consultationId,
+      additionalSeconds,
+      newRemainingSeconds: remainingSeconds,
+      message: "Wallet recharge applied! Consultation time extended seamlessly.",
+    });
+  }
+}
+
+export function updateConsultationTimerRate(consultationId: string, newRatePaisePerMinute: number): void {
+  const session = activeSessions.get(consultationId);
+  if (session) {
+    session.ratePaisePerMinute = newRatePaisePerMinute;
+  }
 }
 
 export function stopConsultationTimer(consultationId: string): void {
@@ -230,6 +276,354 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         if (callback) callback({ success: false, error: err?.message || "INTERNAL_ERROR" });
       }
     });
+
+    // ==========================================
+    // AGORA AUDIO & VIDEO CALL SIGNALING EVENTS
+    // ==========================================
+
+    // Participant establishes Agora RTC Channel connection
+    socket.on(
+      "call:join",
+      async (
+        payload: {
+          consultationId: string;
+          channelName: string;
+          numericUid: number;
+          isMutedAudio?: boolean;
+          isVideoEnabled?: boolean;
+        },
+        callback?: (res: any) => void
+      ) => {
+        try {
+          const { consultationId, channelName, numericUid, isMutedAudio = false, isVideoEnabled = true } = payload;
+          if (!consultationId) {
+            if (callback) callback({ success: false, error: "CONSULTATION_ID_REQUIRED" });
+            return;
+          }
+
+          const consultation = await prisma.consultationRequest.findUnique({
+            where: { id: consultationId },
+            include: { astrologerProfile: true },
+          });
+
+          if (!consultation) {
+            if (callback) callback({ success: false, error: "NOT_FOUND" });
+            return;
+          }
+
+          const isCustomer = consultation.customerId === user.userId;
+          const isAstrologer = consultation.astrologerProfile.userId === user.userId;
+
+          if (!isCustomer && !isAstrologer) {
+            if (callback) callback({ success: false, error: "UNAUTHORIZED_CALL_ACCESS" });
+            return;
+          }
+
+          // Record connection event in database
+          await RtcService.recordConnectionEvent({
+            consultationId,
+            userId: user.userId,
+            eventType: "JOINED",
+            detailsJson: { numericUid, isMutedAudio, isVideoEnabled },
+          });
+
+          // Update RTC Channel joined state
+          const channel = await RtcService.getOrCreateChannel(consultationId, consultation.type);
+          const updateData: any = {};
+          if (isCustomer) updateData.customerJoined = true;
+          if (isAstrologer) updateData.astrologerJoined = true;
+          if (channel.status === "IDLE") updateData.status = "ACTIVE";
+          if (!channel.startedAt) updateData.startedAt = new Date();
+
+          await prisma.rTCChannel.update({
+            where: { id: channel.id },
+            data: updateData,
+          });
+
+          // Check if both participants are now connected
+          const activeSession = activeSessions.get(consultationId);
+          if (activeSession) {
+            if (isCustomer) activeSession.customerRtcJoined = true;
+            if (isAstrologer) activeSession.astrologerRtcJoined = true;
+          }
+
+          // Notify room of participant join
+          io?.to(`consultation:${consultationId}`).emit("call:peer_joined", {
+            consultationId,
+            userId: user.userId,
+            role: isAstrologer ? "ASTROLOGER" : "CUSTOMER",
+            numericUid,
+            isMutedAudio,
+            isVideoEnabled,
+          });
+
+          if (callback) callback({ success: true, channelName, numericUid });
+        } catch (err: any) {
+          if (callback) callback({ success: false, error: err?.message || "JOIN_FAILED" });
+        }
+      }
+    );
+
+    // Audio mute toggle
+    socket.on("call:mute", async (payload: { consultationId: string; isMuted: boolean }) => {
+      const { consultationId, isMuted } = payload;
+      if (!consultationId) return;
+
+      await RtcService.recordConnectionEvent({
+        consultationId,
+        userId: user.userId,
+        eventType: isMuted ? "MUTED_AUDIO" : "UNMUTED_AUDIO",
+      });
+
+      socket.to(`consultation:${consultationId}`).emit("call:peer_mute", {
+        consultationId,
+        userId: user.userId,
+        isMuted,
+      });
+    });
+
+    // Camera video toggle
+    socket.on("call:camera", async (payload: { consultationId: string; isVideoEnabled: boolean }) => {
+      const { consultationId, isVideoEnabled } = payload;
+      if (!consultationId) return;
+
+      await RtcService.recordConnectionEvent({
+        consultationId,
+        userId: user.userId,
+        eventType: isVideoEnabled ? "CAMERA_ENABLED" : "CAMERA_DISABLED",
+      });
+
+      socket.to(`consultation:${consultationId}`).emit("call:peer_camera", {
+        consultationId,
+        userId: user.userId,
+        isVideoEnabled,
+      });
+    });
+
+    // Network quality telemetry
+    socket.on(
+      "call:quality",
+      async (payload: {
+        consultationId: string;
+        networkQuality: number;
+        uplinkBitrateKbps?: number;
+        downlinkBitrateKbps?: number;
+        packetLossRate?: number;
+        rttMs?: number;
+      }) => {
+        const { consultationId, networkQuality, uplinkBitrateKbps, downlinkBitrateKbps, packetLossRate, rttMs } = payload;
+        if (!consultationId) return;
+
+        await RtcService.recordQualityMetric({
+          consultationId,
+          userId: user.userId,
+          networkQuality,
+          uplinkBitrateKbps,
+          downlinkBitrateKbps,
+          packetLossRate,
+          rttMs,
+        });
+
+        // Broadcast quality indicator to peer
+        socket.to(`consultation:${consultationId}`).emit("call:peer_quality", {
+          consultationId,
+          userId: user.userId,
+          networkQuality,
+        });
+      }
+    );
+
+    // Reconnecting / Reconnected events
+    socket.on("call:reconnecting", async (payload: { consultationId: string }) => {
+      const { consultationId } = payload;
+      if (!consultationId) return;
+
+      await RtcService.recordConnectionEvent({
+        consultationId,
+        userId: user.userId,
+        eventType: "RECONNECTING",
+      });
+
+      socket.to(`consultation:${consultationId}`).emit("call:peer_reconnecting", {
+        consultationId,
+        userId: user.userId,
+        gracePeriodSeconds: 30,
+      });
+    });
+
+    socket.on("call:reconnected", async (payload: { consultationId: string }) => {
+      const { consultationId } = payload;
+      if (!consultationId) return;
+
+      await RtcService.recordConnectionEvent({
+        consultationId,
+        userId: user.userId,
+        eventType: "RECONNECTED",
+      });
+
+      socket.to(`consultation:${consultationId}`).emit("call:peer_reconnected", {
+        consultationId,
+        userId: user.userId,
+      });
+    });
+
+    // Audio to Video Upgrade Negotiation
+    socket.on(
+      "call:upgrade_request",
+      async (payload: { consultationId: string }, callback?: (res: any) => void) => {
+        try {
+          const { consultationId } = payload;
+          if (!consultationId) {
+            if (callback) callback({ success: false, error: "CONSULTATION_ID_REQUIRED" });
+            return;
+          }
+
+          const consultation = await prisma.consultationRequest.findUnique({
+            where: { id: consultationId },
+            include: { astrologerProfile: true },
+          });
+
+          if (!consultation || consultation.customerId !== user.userId) {
+            if (callback) callback({ success: false, error: "UNAUTHORIZED_OR_NOT_FOUND" });
+            return;
+          }
+
+          if (consultation.type !== "AUDIO") {
+            if (callback) callback({ success: false, error: "CANNOT_UPGRADE", message: `Consultation is already ${consultation.type}` });
+            return;
+          }
+
+          const newRatePaise = consultation.astrologerProfile.videoRatePaise || consultation.ratePaisePerMinute * 1.5;
+
+          // Check if customer wallet has enough for at least 2 minutes at new rate
+          const wallet = await prisma.wallet.findUnique({ where: { userId: user.userId } });
+          const totalPaise = (wallet?.paidBalancePaise || 0n) + (wallet?.promoBalancePaise || 0n);
+          if (totalPaise < BigInt(newRatePaise * 2)) {
+            if (callback) callback({ success: false, error: "INSUFFICIENT_WALLET_BALANCE_FOR_UPGRADE" });
+            return;
+          }
+
+          // Create upgrade request record
+          const upgradeReq = await prisma.callUpgradeRequest.create({
+            data: {
+              consultationId,
+              fromType: "AUDIO",
+              toType: "VIDEO",
+              newRatePaisePerMinute: Math.round(newRatePaise),
+              requestedById: user.userId,
+              status: "PENDING",
+            },
+          });
+
+          // Forward request to astrologer
+          emitToUser(consultation.astrologerProfile.userId, "call:upgrade_requested", {
+            consultationId,
+            upgradeRequestId: upgradeReq.id,
+            fromType: "AUDIO",
+            toType: "VIDEO",
+            newRatePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+            customerName: "Customer",
+          });
+
+          if (callback) callback({ success: true, upgradeRequestId: upgradeReq.id, newRatePaise: upgradeReq.newRatePaisePerMinute });
+        } catch (err: any) {
+          if (callback) callback({ success: false, error: err?.message || "UPGRADE_REQUEST_FAILED" });
+        }
+      }
+    );
+
+    // Astrologer responds to upgrade request
+    socket.on(
+      "call:upgrade_respond",
+      async (
+        payload: {
+          consultationId: string;
+          upgradeRequestId: string;
+          accepted: boolean;
+        },
+        callback?: (res: any) => void
+      ) => {
+        try {
+          const { consultationId, upgradeRequestId, accepted } = payload;
+
+          const upgradeReq = await prisma.callUpgradeRequest.findUnique({
+            where: { id: upgradeRequestId },
+            include: { consultation: { include: { astrologerProfile: true } } },
+          });
+
+          if (!upgradeReq || upgradeReq.consultation.astrologerProfile.userId !== user.userId) {
+            if (callback) callback({ success: false, error: "UNAUTHORIZED_OR_NOT_FOUND" });
+            return;
+          }
+
+          if (upgradeReq.status !== "PENDING") {
+            if (callback) callback({ success: false, error: "ALREADY_RESPONDED" });
+            return;
+          }
+
+          if (!accepted) {
+            await prisma.callUpgradeRequest.update({
+              where: { id: upgradeRequestId },
+              data: { status: "REJECTED", respondedAt: new Date() },
+            });
+
+            emitToConsultation(consultationId, "call:upgrade_rejected", {
+              consultationId,
+              reason: "Astrologer declined video upgrade request. Audio consultation continues uninterrupted.",
+            });
+
+            if (callback) callback({ success: true, accepted: false });
+            return;
+          }
+
+          // Accepted: Perform multi-segment transition
+          const activeSession = activeSessions.get(consultationId);
+          const currentElapsed = activeSession
+            ? Math.floor((Date.now() - activeSession.startedAt) / 1000)
+            : 60;
+
+          // Record audio billing segment up to now
+          await BillingService.recordBillingSegment({
+            consultationId,
+            segmentIndex: 1,
+            callType: "AUDIO",
+            ratePaisePerMinute: upgradeReq.consultation.ratePaisePerMinute,
+            startSeconds: 0,
+            endSeconds: currentElapsed,
+          });
+
+          // Update consultation to VIDEO and new rate
+          await prisma.consultationRequest.update({
+            where: { id: consultationId },
+            data: {
+              type: "VIDEO",
+              ratePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+            },
+          });
+
+          await prisma.callUpgradeRequest.update({
+            where: { id: upgradeRequestId },
+            data: { status: "ACCEPTED", respondedAt: new Date() },
+          });
+
+          // Update active timer rate
+          updateConsultationTimerRate(consultationId, upgradeReq.newRatePaisePerMinute);
+
+          // Broadcast upgrade success to both parties
+          emitToConsultation(consultationId, "call:upgraded", {
+            consultationId,
+            newType: "VIDEO",
+            newRatePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+            effectiveAtSeconds: currentElapsed,
+            message: "Consultation successfully upgraded to Video! Video camera is now active.",
+          });
+
+          if (callback) callback({ success: true, accepted: true });
+        } catch (err: any) {
+          if (callback) callback({ success: false, error: err?.message || "UPGRADE_RESPONSE_FAILED" });
+        }
+      }
+    );
 
     // Two-way messaging
     socket.on(

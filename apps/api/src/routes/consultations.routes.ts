@@ -10,6 +10,7 @@ import {
   emitToConsultation,
   startConsultationTimer,
   stopConsultationTimer,
+  updateConsultationTimerRate,
 } from "../services/socket.service.js";
 import { env } from "../config/env.js";
 
@@ -276,13 +277,24 @@ consultationsRouter.post("/:id/accept", requireAuth, async (req: AuthenticatedRe
     });
 
     // Real-time socket dispatch to customer
+    const customerToken = RtcService.mintToken({ channelName, uid: consultation.customerId, role: "publisher" });
     emitToUser(consultation.customerId, "consultation:accepted", {
       consultationId: consultation.id,
       channelName,
-      rtcToken: RtcService.mintToken({ channelName, uid: consultation.customerId, role: "publisher" }),
+      rtcToken: customerToken,
       astrologerName: consultation.astrologerProfile.displayName,
       ratePaisePerMinute: consultation.ratePaisePerMinute,
       maxDurationSeconds,
+    });
+
+    emitToUser(consultation.customerId, "call:accepted", {
+      consultationId: consultation.id,
+      channelName,
+      rtcToken: customerToken,
+      astrologerName: consultation.astrologerProfile.displayName,
+      ratePaisePerMinute: consultation.ratePaisePerMinute,
+      maxDurationSeconds,
+      type: consultation.type,
     });
 
     // Notify customer via push notification
@@ -523,9 +535,16 @@ consultationsRouter.post("/:id/end", requireAuth, async (req: AuthenticatedReque
       consultationId,
       durationSeconds: settlement.totalDurationSeconds,
       billableMinutes: settlement.billableMinutes,
+      ratePaisePerMinute: settlement.ratePaisePerMinute,
       totalChargeInr: Number(settlement.totalCostPaise) / 100,
+      totalCostPaise: settlement.totalCostPaise.toString(),
+      promoDeductedPaise: settlement.promoDeductedPaise.toString(),
+      paidDeductedPaise: settlement.paidDeductedPaise.toString(),
+      astrologerEarningsPaise: settlement.astrologerEarningsPaise.toString(),
+      platformCommissionPaise: settlement.platformCommissionPaise.toString(),
       customerRemainingBalanceInr: settlement.newCustomerBalanceInr,
       astrologerEarningInr: Number(settlement.astrologerEarningsPaise) / 100,
+      alreadySettled: settlement.alreadySettled || false,
     };
 
     // Broadcast session completion to both participants via socket
@@ -708,5 +727,420 @@ consultationsRouter.get("/:id", requireAuth, async (req: AuthenticatedRequest, r
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message || "Failed to fetch consultation details" });
+  }
+});
+
+// ========================================================
+// STEP 7: PRODUCTION AGORA AUDIO & VIDEO CALLING ENDPOINTS
+// ========================================================
+
+// 10. Record RTC Connection Event (JOINED, LEFT, MUTED, CAMERA_TOGGLED, etc.)
+consultationsRouter.post("/call/:id/join-event", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const consultationId = String(req.params.id);
+    const userId = req.user!.id;
+    const { eventType, detailsJson } = req.body;
+
+    if (!eventType) {
+      res.status(400).json({ success: false, error: "EVENT_TYPE_REQUIRED" });
+      return;
+    }
+
+    const consultation = await prisma.consultationRequest.findUnique({
+      where: { id: consultationId },
+      include: { astrologerProfile: true },
+    });
+
+    if (!consultation) {
+      res.status(404).json({ success: false, error: "NOT_FOUND" });
+      return;
+    }
+
+    const isCustomer = consultation.customerId === userId;
+    const isAstrologer = consultation.astrologerProfile.userId === userId;
+
+    if (!isCustomer && !isAstrologer) {
+      res.status(403).json({ success: false, error: "UNAUTHORIZED" });
+      return;
+    }
+
+    await RtcService.recordConnectionEvent({
+      consultationId,
+      userId,
+      eventType: String(eventType),
+      detailsJson,
+    });
+
+    res.json({ success: true, message: `Event ${eventType} recorded successfully` });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 11. Record Network Quality Telemetry
+consultationsRouter.post("/call/:id/quality", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const consultationId = String(req.params.id);
+    const userId = req.user!.id;
+    const { networkQuality, uplinkBitrateKbps, downlinkBitrateKbps, packetLossRate, rttMs } = req.body;
+
+    await RtcService.recordQualityMetric({
+      consultationId,
+      userId,
+      networkQuality: Number(networkQuality) || 1,
+      uplinkBitrateKbps: uplinkBitrateKbps ? Number(uplinkBitrateKbps) : undefined,
+      downlinkBitrateKbps: downlinkBitrateKbps ? Number(downlinkBitrateKbps) : undefined,
+      packetLossRate: packetLossRate ? Number(packetLossRate) : undefined,
+      rttMs: rttMs ? Number(rttMs) : undefined,
+    });
+
+    res.json({ success: true, message: "Quality metric recorded" });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 12. Request Audio-to-Video Upgrade
+consultationsRouter.post("/call/:id/upgrade/request", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const consultationId = String(req.params.id);
+    const userId = req.user!.id;
+
+    const consultation = await prisma.consultationRequest.findUnique({
+      where: { id: consultationId },
+      include: { astrologerProfile: true },
+    });
+
+    if (!consultation || consultation.customerId !== userId) {
+      res.status(403).json({ success: false, error: "UNAUTHORIZED_OR_NOT_FOUND" });
+      return;
+    }
+
+    if (consultation.type !== "AUDIO") {
+      res.status(400).json({ success: false, error: "INVALID_STATE", message: `Consultation is already ${consultation.type}` });
+      return;
+    }
+
+    const newRatePaise = consultation.astrologerProfile.videoRatePaise || Math.round(consultation.ratePaisePerMinute * 1.5);
+
+    // Verify wallet
+    const wallet = await prisma.wallet.findUnique({ where: { userId } });
+    const totalPaise = (wallet?.paidBalancePaise || 0n) + (wallet?.promoBalancePaise || 0n);
+    if (totalPaise < BigInt(newRatePaise * 2)) {
+      res.status(402).json({
+        success: false,
+        error: "INSUFFICIENT_BALANCE",
+        message: "Wallet balance insufficient for video upgrade (minimum 2 minutes required).",
+      });
+      return;
+    }
+
+    const upgradeReq = await prisma.callUpgradeRequest.create({
+      data: {
+        consultationId,
+        fromType: "AUDIO",
+        toType: "VIDEO",
+        newRatePaisePerMinute: newRatePaise,
+        requestedById: userId,
+        status: "PENDING",
+      },
+    });
+
+    emitToUser(consultation.astrologerProfile.userId, "call:upgrade_requested", {
+      consultationId,
+      upgradeRequestId: upgradeReq.id,
+      fromType: "AUDIO",
+      toType: "VIDEO",
+      newRatePaisePerMinute: newRatePaise,
+    });
+
+    res.json({
+      success: true,
+      message: "Upgrade requested. Waiting for astrologer acceptance.",
+      data: {
+        upgradeRequestId: upgradeReq.id,
+        newRatePaisePerMinute: newRatePaise,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 13. Respond to Audio-to-Video Upgrade
+consultationsRouter.post("/call/:id/upgrade/respond", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const consultationId = String(req.params.id);
+    const userId = req.user!.id;
+    const { upgradeRequestId, accepted } = req.body;
+
+    const upgradeReq = await prisma.callUpgradeRequest.findUnique({
+      where: { id: String(upgradeRequestId) },
+      include: { consultation: { include: { astrologerProfile: true } } },
+    });
+
+    if (!upgradeReq || upgradeReq.consultation.astrologerProfile.userId !== userId) {
+      res.status(403).json({ success: false, error: "UNAUTHORIZED" });
+      return;
+    }
+
+    if (!accepted) {
+      await prisma.callUpgradeRequest.update({
+        where: { id: upgradeReq.id },
+        data: { status: "REJECTED", respondedAt: new Date() },
+      });
+
+      emitToConsultation(consultationId, "call:upgrade_rejected", {
+        consultationId,
+        message: "Astrologer declined video upgrade. Audio consultation continues.",
+      });
+
+      res.json({ success: true, accepted: false, message: "Upgrade rejected" });
+      return;
+    }
+
+    // Freeze current audio billing segment
+    const currentDuration = upgradeReq.consultation.durationSeconds || 60;
+    await BillingService.recordBillingSegment({
+      consultationId,
+      segmentIndex: 1,
+      callType: "AUDIO",
+      ratePaisePerMinute: upgradeReq.consultation.ratePaisePerMinute,
+      startSeconds: 0,
+      endSeconds: currentDuration,
+    });
+
+    // Switch to VIDEO and update rate
+    await prisma.consultationRequest.update({
+      where: { id: consultationId },
+      data: {
+        type: "VIDEO",
+        ratePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+      },
+    });
+
+    await prisma.callUpgradeRequest.update({
+      where: { id: upgradeReq.id },
+      data: { status: "ACCEPTED", respondedAt: new Date() },
+    });
+
+    updateConsultationTimerRate(consultationId, upgradeReq.newRatePaisePerMinute);
+
+    emitToConsultation(consultationId, "call:upgraded", {
+      consultationId,
+      newType: "VIDEO",
+      newRatePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+    });
+
+    res.json({
+      success: true,
+      accepted: true,
+      message: "Consultation upgraded to video successfully",
+      newRatePaisePerMinute: upgradeReq.newRatePaisePerMinute,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 14. Real-time In-Call Status & Agora Telemetry
+consultationsRouter.get("/call/:id/status", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const consultationId = String(req.params.id);
+    const userId = req.user!.id;
+    const role = req.user!.role;
+
+    const consultation = await prisma.consultationRequest.findUnique({
+      where: { id: consultationId },
+      include: {
+        astrologerProfile: true,
+        customer: true,
+        rtcChannel: {
+          include: {
+            participants: true,
+            qualityMetrics: { orderBy: { recordedAt: "desc" }, take: 10 },
+          },
+        },
+        billingSegments: { orderBy: { segmentIndex: "asc" } },
+      },
+    });
+
+    if (!consultation) {
+      res.status(404).json({ success: false, error: "NOT_FOUND" });
+      return;
+    }
+
+    const isCustomer = consultation.customerId === userId;
+    const isAstrologer = consultation.astrologerProfile.userId === userId;
+    const isAdmin = role === "SUPER_ADMIN" || role === "SUPPORT";
+
+    if (!isCustomer && !isAstrologer && !isAdmin) {
+      res.status(403).json({ success: false, error: "UNAUTHORIZED" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        consultationId: consultation.id,
+        type: consultation.type,
+        status: consultation.status,
+        ratePaisePerMinute: consultation.ratePaisePerMinute,
+        channelName: consultation.channelName,
+        rtcChannel: consultation.rtcChannel,
+        billingSegments: consultation.billingSegments,
+        astrologer: {
+          id: consultation.astrologerProfile.id,
+          name: consultation.astrologerProfile.displayName,
+          avatarUrl: consultation.astrologerProfile.avatarUrl,
+        },
+        customer: {
+          id: consultation.customer.id,
+          name: consultation.customer.fullName,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 15. Super Admin Live Calling Control Centre Telemetry
+consultationsRouter.get("/admin/live-calling", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== "SUPER_ADMIN" && req.user?.role !== "SUPPORT") {
+      res.status(403).json({ success: false, error: "FORBIDDEN", message: "Super Admin privileges required" });
+      return;
+    }
+
+    const [activeAudio, activeVideo, pendingRequests, activeChannels, recentMetrics] = await Promise.all([
+      prisma.consultationRequest.count({ where: { type: "AUDIO", status: "ACCEPTED" } }),
+      prisma.consultationRequest.count({ where: { type: "VIDEO", status: "ACCEPTED" } }),
+      prisma.consultationRequest.count({ where: { status: "PENDING" } }),
+      prisma.rTCChannel.findMany({
+        where: { status: "ACTIVE" },
+        include: {
+          consultation: {
+            include: { astrologerProfile: true, customer: true },
+          },
+          participants: true,
+        },
+        take: 20,
+      }),
+      prisma.callQualityMetric.findMany({
+        orderBy: { recordedAt: "desc" },
+        take: 30,
+      }),
+    ]);
+
+    const completedToday = await prisma.consultationBillingRecord.findMany({
+      where: {
+        finalizedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+      },
+    });
+
+    const totalMinutesToday = completedToday.reduce((acc, curr) => acc + curr.billableMinutes, 0);
+    const totalCommissionPaise = completedToday.reduce((acc, curr) => acc + curr.platformCommissionPaise, 0n);
+
+    res.json({
+      success: true,
+      data: {
+        kpi: {
+          activeAudioCalls: activeAudio,
+          activeVideoCalls: activeVideo,
+          pendingRequests,
+          totalBillableMinutesToday: totalMinutesToday,
+          totalCommissionInr: Number(totalCommissionPaise) / 100,
+          agoraStatus: "HEALTHY",
+        },
+        activeChannels: activeChannels.map((c) => ({
+          channelId: c.id,
+          consultationId: c.consultationId,
+          channelName: c.channelName,
+          callType: c.callType,
+          startedAt: c.startedAt?.toISOString() || null,
+          astrologerName: c.consultation.astrologerProfile.displayName,
+          customerName: c.consultation.customer.fullName,
+          ratePaisePerMinute: c.consultation.ratePaisePerMinute,
+          participantsCount: c.participants.length,
+        })),
+        recentQualitySamples: recentMetrics.map((m) => ({
+          consultationId: m.consultationId,
+          networkQuality: m.networkQuality,
+          rttMs: m.rttMs,
+          packetLossRate: m.packetLossRate,
+          recordedAt: m.recordedAt.toISOString(),
+        })),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+// 16. Admin Call Settings (Audio/Video toggles, min/max rates, timeouts)
+consultationsRouter.get("/admin/call-settings", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: {
+        key: {
+          in: [
+            "ENABLE_AUDIO_CONSULTATION",
+            "ENABLE_VIDEO_CONSULTATION",
+            "MIN_AUDIO_RATE_PAISE",
+            "MAX_AUDIO_RATE_PAISE",
+            "MIN_VIDEO_RATE_PAISE",
+            "MAX_VIDEO_RATE_PAISE",
+            "INCOMING_CALL_TIMEOUT_SECONDS",
+            "MAX_CALL_DURATION_MINUTES",
+            "RECONNECTION_GRACE_PERIOD_SECONDS",
+          ],
+        },
+      },
+    });
+
+    const settingsMap = settings.reduce((acc: any, curr) => {
+      acc[curr.key] = curr.valueJson;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        enableAudio: settingsMap.ENABLE_AUDIO_CONSULTATION !== "false",
+        enableVideo: settingsMap.ENABLE_VIDEO_CONSULTATION !== "false",
+        minAudioRatePaise: Number(settingsMap.MIN_AUDIO_RATE_PAISE) || 500,
+        maxAudioRatePaise: Number(settingsMap.MAX_AUDIO_RATE_PAISE) || 20000,
+        minVideoRatePaise: Number(settingsMap.MIN_VIDEO_RATE_PAISE) || 1000,
+        maxVideoRatePaise: Number(settingsMap.MAX_VIDEO_RATE_PAISE) || 50000,
+        incomingCallTimeoutSeconds: Number(settingsMap.INCOMING_CALL_TIMEOUT_SECONDS) || 30,
+        maxCallDurationMinutes: Number(settingsMap.MAX_CALL_DURATION_MINUTES) || 120,
+        reconnectionGracePeriodSeconds: Number(settingsMap.RECONNECTION_GRACE_PERIOD_SECONDS) || 30,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
+  }
+});
+
+consultationsRouter.put("/admin/call-settings", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== "SUPER_ADMIN") {
+      res.status(403).json({ success: false, error: "FORBIDDEN" });
+      return;
+    }
+
+    const updates = req.body;
+    for (const [key, value] of Object.entries(updates)) {
+      await prisma.systemSetting.upsert({
+        where: { key },
+        create: { key, valueJson: value as any, description: "Call Setting" },
+        update: { valueJson: value as any },
+      });
+    }
+
+    res.json({ success: true, message: "Call settings updated successfully" });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: err?.message });
   }
 });

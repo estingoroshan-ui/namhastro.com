@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
 import {
   BadgeCheck,
   Calendar,
@@ -10,6 +11,7 @@ import {
   IndianRupee,
   MessageCircle,
   PhoneCall,
+  PhoneOff,
   Power,
   Star,
   Video,
@@ -23,6 +25,7 @@ import {
   Building,
   UserCheck,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
@@ -99,6 +102,17 @@ export default function AstrologerPartnerPage() {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawAmountInr, setWithdrawAmountInr] = useState(500);
 
+  // Incoming Call State
+  const [incomingCall, setIncomingCall] = useState<{
+    consultationId: string;
+    customerName: string;
+    type: "AUDIO" | "VIDEO" | "CHAT";
+    ratePaisePerMinute: number;
+    concern: string;
+    timeoutSeconds: number;
+  } | null>(null);
+  const callCountdownRef = useRef<NodeJS.Timeout | null>(null);
+
   // Application Form State (For non-partners)
   const [onboardingData, setOnboardingData] = useState({
     fullName: "",
@@ -142,8 +156,107 @@ export default function AstrologerPartnerPage() {
   useEffect(() => {
     if (token) {
       loadDashboard();
+
+      // Listen for incoming Audio/Video/Chat consultations
+      const socket = io(API_BASE, {
+        auth: { token: `Bearer ${token}` },
+        transports: ["websocket", "polling"],
+      });
+
+      const handleIncoming = (data: any) => {
+        setIncomingCall({
+          consultationId: data.consultationId,
+          customerName: data.customerName || "Devotee / Customer",
+          type: data.type || "AUDIO",
+          ratePaisePerMinute: data.ratePaisePerMinute || 3500,
+          concern: data.concern || "Vedic Astrological Guidance",
+          timeoutSeconds: 30,
+        });
+
+        // Trigger gentle astrological ringtone
+        try {
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.25);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.85);
+          }
+        } catch (e) {}
+
+        let remain = 30;
+        if (callCountdownRef.current) clearInterval(callCountdownRef.current);
+        callCountdownRef.current = setInterval(() => {
+          remain -= 1;
+          if (remain <= 0) {
+            clearInterval(callCountdownRef.current!);
+            setIncomingCall(null);
+          } else {
+            setIncomingCall((prev) => (prev ? { ...prev, timeoutSeconds: remain } : null));
+          }
+        }, 1000);
+      };
+
+      socket.on("call:incoming", handleIncoming);
+      socket.on("consultation:incoming", handleIncoming);
+
+      return () => {
+        socket.disconnect();
+        if (callCountdownRef.current) clearInterval(callCountdownRef.current);
+      };
     }
   }, [token]);
+
+  const acceptIncomingCall = async () => {
+    if (!incomingCall) return;
+    if (callCountdownRef.current) clearInterval(callCountdownRef.current);
+    const cId = incomingCall.consultationId;
+    const cType = incomingCall.type;
+
+    try {
+      await fetch(`${API_BASE}/api/v1/consultations/${cId}/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setIncomingCall(null);
+      if (cType === "CHAT") {
+        window.location.href = `/consultation/chat?id=${cId}&role=astrologer`;
+      } else {
+        window.location.href = `/consultation/call?id=${cId}&role=astrologer&type=${cType}`;
+      }
+    } catch (err) {
+      setIncomingCall(null);
+    }
+  };
+
+  const declineIncomingCall = async () => {
+    if (!incomingCall) return;
+    if (callCountdownRef.current) clearInterval(callCountdownRef.current);
+    const cId = incomingCall.consultationId;
+    setIncomingCall(null);
+
+    try {
+      await fetch(`${API_BASE}/api/v1/consultations/${cId}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: "Astrologer is currently occupied" }),
+      });
+    } catch (e) {}
+  };
 
   // Toggle Availability
   const toggleAvailability = async (key: "isOnline" | "chatEnabled" | "audioEnabled" | "videoEnabled") => {
@@ -777,6 +890,148 @@ export default function AstrologerPartnerPage() {
             </div>
           )}
         </div>
+
+        {/* ======================================================== */}
+        {/* INCOMING CALL MODAL (30s SLA WITH RINGTONE & CONTROLS)   */}
+        {/* ======================================================== */}
+        {incomingCall && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.8)",
+              backdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: "1rem",
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "var(--deep-plum)",
+                border: "2px solid var(--champagne-gold)",
+                borderRadius: "1.25rem",
+                padding: "2rem",
+                maxWidth: "28rem",
+                width: "100%",
+                color: "#FFFFFF",
+                textAlign: "center",
+                boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
+                position: "relative",
+              }}
+            >
+              {/* Pulsing Aura Badge */}
+              <div
+                style={{
+                  width: "5rem",
+                  height: "5rem",
+                  borderRadius: "50%",
+                  backgroundColor: "rgba(212,168,79,0.25)",
+                  color: "var(--champagne-gold)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 1.25rem",
+                  animation: "pulse 1.5s infinite ease-in-out",
+                  border: "2px solid var(--champagne-gold)",
+                }}
+              >
+                {incomingCall.type === "VIDEO" ? (
+                  <Video size={36} color="var(--champagne-gold)" />
+                ) : (
+                  <PhoneCall size={36} color="var(--champagne-gold)" />
+                )}
+              </div>
+
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  color: "var(--champagne-gold)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Incoming {incomingCall.type} Consultation
+              </span>
+
+              <h2 style={{ fontSize: "1.6rem", margin: "0.3rem 0", color: "#FFFFFF" }}>
+                {incomingCall.customerName}
+              </h2>
+
+              <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "#F3E8FF" }}>
+                Concern: <strong>{incomingCall.concern}</strong> · Rate: ₹{(incomingCall.ratePaisePerMinute / 100).toFixed(2)}/min
+              </p>
+
+              {/* 30s SLA Progress Indicator */}
+              <div
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  borderRadius: "9999px",
+                  padding: "0.35rem 0.85rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: "#FDE047",
+                  marginBottom: "1.75rem",
+                }}
+              >
+                <Clock size={15} />
+                <span>Expires in {incomingCall.timeoutSeconds}s</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  onClick={declineIncomingCall}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#DC2626",
+                    color: "#FFFFFF",
+                    fontWeight: 700,
+                    padding: "0.85rem 1rem",
+                    borderRadius: "0.75rem",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <PhoneOff size={18} /> Decline
+                </button>
+
+                <button
+                  type="button"
+                  onClick={acceptIncomingCall}
+                  style={{
+                    flex: 1.2,
+                    backgroundColor: "#16A34A",
+                    color: "#FFFFFF",
+                    fontWeight: 800,
+                    padding: "0.85rem 1rem",
+                    borderRadius: "0.75rem",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                    boxShadow: "0 4px 14px rgba(22,163,74,0.4)",
+                  }}
+                >
+                  <PhoneCall size={18} /> Accept Call
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <MobileBottomNav />
     </>

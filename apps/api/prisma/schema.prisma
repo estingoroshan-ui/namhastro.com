@@ -318,6 +318,12 @@ model ConsultationRequest {
   billingRecord       ConsultationBillingRecord?
   consultationReview  ConsultationReview?
   disputes            ConsultationDispute[]
+  rtcChannel          RTCChannel?
+  rtcTokenAudits      RTCTokenAudit[]
+  callConnectionEvents CallConnectionEvent[]
+  callQualityMetrics  CallQualityMetric[]
+  billingSegments     ConsultationBillingSegment[]
+  upgradeRequests     CallUpgradeRequest[]
 
   @@index([customerId, status])
   @@index([astrologerProfileId, status])
@@ -854,4 +860,149 @@ model ConsultationDispute {
 
   @@index([consultationId, status])
   @@map("consultation_disputes")
+}
+
+model RTCChannel {
+  id                 String              @id @default(cuid())
+  consultationId     String              @unique
+  channelName        String              @unique @db.VarChar(128)
+  provider           String              @default("agora") @db.VarChar(32)
+  callType           String              @default("AUDIO") @db.VarChar(32)
+  status             String              @default("IDLE") @db.VarChar(32)
+  customerJoined     Boolean             @default(false)
+  astrologerJoined   Boolean             @default(false)
+  recordingEnabled   Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  startedAt          DateTime?
+  endedAt            DateTime?
+
+  consultation       ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  participants       RTCParticipant[]
+  connectionEvents   CallConnectionEvent[]
+  qualityMetrics     CallQualityMetric[]
+
+  @@map("rtc_channels")
+}
+
+model RTCParticipant {
+  id                 String        @id @default(cuid())
+  channelId          String
+  userId             String
+  role               String        @db.VarChar(32)
+  numericUid         BigInt
+  isMutedAudio       Boolean       @default(false)
+  isVideoEnabled     Boolean       @default(true)
+  joinedAt           DateTime      @default(now())
+  leftAt             DateTime?
+  reconnectCount     Int           @default(0)
+
+  channel            RTCChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, userId])
+  @@map("rtc_participants")
+}
+
+model RTCTokenAudit {
+  id                 String        @id @default(cuid())
+  consultationId     String
+  userId             String
+  channelName        String        @db.VarChar(128)
+  role               String        @db.VarChar(32)
+  numericUid         BigInt
+  expiresInSeconds   Int
+  clientIp           String?       @db.VarChar(64)
+  userAgent          String?       @db.VarChar(255)
+  createdAt          DateTime      @default(now())
+
+  consultation       ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, userId])
+  @@map("rtc_token_audits")
+}
+
+model CallConnectionEvent {
+  id                 String        @id @default(cuid())
+  channelId          String
+  consultationId     String
+  userId             String?
+  eventType          String        @db.VarChar(64)
+  detailsJson        Json?
+  createdAt          DateTime      @default(now())
+
+  channel            RTCChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  consultation       ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, eventType])
+  @@map("call_connection_events")
+}
+
+model CallQualityMetric {
+  id                 String        @id @default(cuid())
+  channelId          String
+  consultationId     String
+  userId             String
+  networkQuality     Int           @default(1)
+  uplinkBitrateKbps  Int?
+  downlinkBitrateKbps Int?
+  packetLossRate     Float?
+  rttMs              Int?
+  recordedAt         DateTime      @default(now())
+
+  channel            RTCChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  consultation       ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, recordedAt])
+  @@map("call_quality_metrics")
+}
+
+model ConsultationBillingSegment {
+  id                 String        @id @default(cuid())
+  consultationId     String
+  segmentIndex       Int           @default(1)
+  callType           String        @db.VarChar(32)
+  ratePaisePerMinute Int
+  startSeconds       Int
+  endSeconds         Int
+  durationSeconds    Int
+  amountPaise        BigInt
+  createdAt          DateTime      @default(now())
+
+  consultation       ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+  @@map("consultation_billing_segments")
+}
+
+model CallUpgradeRequest {
+  id                    String        @id @default(cuid())
+  consultationId        String
+  fromType              String        @default("AUDIO") @db.VarChar(32)
+  toType                String        @default("VIDEO") @db.VarChar(32)
+  newRatePaisePerMinute Int
+  status                String        @default("PENDING") @db.VarChar(32)
+  requestedById         String
+  respondedAt           DateTime?
+  createdAt             DateTime      @default(now())
+
+  consultation          ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, status])
+  @@map("call_upgrade_requests")
+}
+
+model NotificationDelivery {
+  id                 String        @id @default(cuid())
+  userId             String
+  category           String        @db.VarChar(64)
+  title              String        @db.VarChar(255)
+  body               String        @db.Text
+  actionUrl          String?       @db.VarChar(255)
+  status             String        @default("QUEUED") @db.VarChar(32)
+  fcmMessageId       String?       @db.VarChar(128)
+  errorReason        String?       @db.VarChar(255)
+  createdAt          DateTime      @default(now())
+  deliveredAt        DateTime?
+
+  @@index([userId, category])
+  @@map("notification_deliveries")
 }

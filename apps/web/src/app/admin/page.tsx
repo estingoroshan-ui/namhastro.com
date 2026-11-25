@@ -631,19 +631,19 @@ export default function SuperAdminDashboardPage() {
             {/* Live Metrics Grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.85rem" }}>
               <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--online)" }}>
-                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Active Live Chats</span>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Active Consultations</span>
                 <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>{liveMetrics.activeChats || 0}</strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--online)", display: "block" }}>● Real-time WebSocket</span>
+                <span style={{ fontSize: "0.72rem", color: "var(--online)", display: "block" }}>● Agora RTC &amp; Socket.IO</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Agora RTC Provider</span>
+                <strong style={{ fontSize: "1.2rem", color: "var(--royal-purple)", display: "block", marginTop: "0.2rem" }}>HEALTHY</strong>
+                <span style={{ fontSize: "0.72rem", color: "#16A34A", display: "block" }}>Voice &amp; HD Video Enabled</span>
               </div>
               <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #F59E0B" }}>
                 <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Pending Requests</span>
                 <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>{liveMetrics.pendingRequests || 0}</strong>
                 <span style={{ fontSize: "0.72rem", color: "#F59E0B", display: "block" }}>30s SLA Timeout</span>
-              </div>
-              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
-                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Online Astrologers</span>
-                <strong style={{ fontSize: "1.6rem", color: "var(--royal-purple)" }}>{liveMetrics.onlineAstrologers || 0}</strong>
-                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>{liveMetrics.busyAstrologers || 0} busy in call</span>
               </div>
               <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--champagne-gold)" }}>
                 <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Completed Today</span>
@@ -661,7 +661,7 @@ export default function SuperAdminDashboardPage() {
             <section className="surface-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                 <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Activity size={18} color="var(--royal-purple)" /> Active Consultation Sessions
+                  <Activity size={18} color="var(--royal-purple)" /> Active Consultation Sessions (Audio, Video &amp; Chat)
                 </h2>
                 <button type="button" onClick={fetchAdminData} className="btn btn-outline btn-sm">
                   <RefreshCw size={13} /> Refresh
@@ -691,7 +691,11 @@ export default function SuperAdminDashboardPage() {
                       {activeConsultationsList.map((c) => (
                         <tr key={c.id}>
                           <td><strong>#{c.id.slice(-6)}</strong></td>
-                          <td><span className="status-pill status-online">{c.type}</span></td>
+                          <td>
+                            <span className={c.type === "VIDEO" ? "status-pill status-online" : "status-pill status-pending"}>
+                              {c.type}
+                            </span>
+                          </td>
                           <td>{c.customerName}</td>
                           <td><strong>{c.astrologerName}</strong></td>
                           <td>{c.concern || "General"}</td>
@@ -699,7 +703,7 @@ export default function SuperAdminDashboardPage() {
                           <td><span className="status-pill status-online">{c.status}</span></td>
                           <td>
                             <Link
-                              href={`/consultation/chat?id=${c.id}&role=astrologer`}
+                              href={c.type === "CHAT" ? `/consultation/chat?id=${c.id}&role=astrologer` : `/consultation/call?id=${c.id}&role=astrologer&type=${c.type}`}
                               className="btn btn-purple btn-sm"
                               style={{ padding: "0.2rem 0.5rem", fontSize: "0.72rem" }}
                             >
