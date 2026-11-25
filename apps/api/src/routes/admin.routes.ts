@@ -105,7 +105,7 @@ adminRouter.get("/applications", async (req: AuthenticatedRequest, res: Response
 adminRouter.get("/applications/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const application = await prisma.astrologerApplication.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: {
         user: true,
         documents: true,
@@ -172,7 +172,7 @@ adminRouter.post("/applications/:id/schedule-interview", async (req: Authenticat
     }
 
     const { scheduledAt, mode, meetingLink, notes } = parsed.data;
-    const applicationId = req.params.id;
+    const applicationId = String(req.params.id);
 
     const interview = await prisma.astrologerInterview.create({
       data: {
@@ -220,7 +220,7 @@ adminRouter.post("/applications/:id/approve", async (req: AuthenticatedRequest, 
       return;
     }
 
-    const applicationId = req.params.id;
+    const applicationId = String(req.params.id);
     const application = await prisma.astrologerApplication.findUnique({
       where: { id: applicationId },
       include: { user: true },
@@ -256,7 +256,7 @@ adminRouter.post("/applications/:id/approve", async (req: AuthenticatedRequest, 
       create: {
         userId: application.userId,
         slug: `astrologer-${application.userId.slice(-6)}`,
-        displayName: application.user.fullName,
+        displayName: (application as any).user?.fullName || "Verified Astrologer",
         verificationStage: "ACTIVE",
         availabilityStatus: "ONLINE",
         isOnline: true,
@@ -310,7 +310,7 @@ adminRouter.post("/applications/:id/approve", async (req: AuthenticatedRequest, 
 adminRouter.post("/applications/:id/reject", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { reason = "Application did not meet qualification criteria" } = req.body;
-    const applicationId = req.params.id;
+    const applicationId = String(req.params.id);
 
     const application = await prisma.astrologerApplication.update({
       where: { id: applicationId },
@@ -344,7 +344,7 @@ adminRouter.patch("/astrologers/:id/status", async (req: AuthenticatedRequest, r
 
     const { stage, reason } = parsed.data;
     const profile = await prisma.astrologerProfile.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         verificationStage: stage,
         availabilityStatus: stage === "ACTIVE" ? "ONLINE" : "OFFLINE",
@@ -385,7 +385,7 @@ adminRouter.patch("/astrologers/:id/rates", async (req: AuthenticatedRequest, re
     }
 
     const profile = await prisma.astrologerProfile.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: parsed.data,
     });
 
@@ -423,7 +423,7 @@ adminRouter.post("/rate-change-requests/:id/review", async (req: AuthenticatedRe
     }
 
     const { action, notes } = parsed.data;
-    const request = await prisma.rateChangeRequest.findUnique({ where: { id: req.params.id } });
+    const request = await prisma.rateChangeRequest.findUnique({ where: { id: String(req.params.id) } });
     if (!request) {
       res.status(404).json({ success: false, error: "NOT_FOUND" });
       return;
@@ -500,7 +500,7 @@ adminRouter.post("/withdrawals/:id/process", async (req: AuthenticatedRequest, r
 
     const { status, payoutReference, notes } = parsed.data;
     const withdrawal = await prisma.withdrawalRequest.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         status,
         payoutReference: payoutReference || null,
@@ -510,6 +510,122 @@ adminRouter.post("/withdrawals/:id/process", async (req: AuthenticatedRequest, r
     });
 
     res.json({ success: true, message: `Withdrawal marked as ${status}`, data: withdrawal });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 14. Super Admin Live Consultation Control Centre Metrics & Active Sessions
+adminRouter.get("/consultations/live", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const [
+      activeSessions,
+      pendingRequests,
+      onlineAstrologers,
+      busyAstrologers,
+      completedToday,
+      totalBilling,
+      openDisputes,
+    ] = await Promise.all([
+      prisma.consultationRequest.findMany({
+        where: { status: { in: ["ACCEPTED", "CONNECTING", "ACTIVE"] } },
+        include: {
+          astrologerProfile: true,
+          customer: true,
+          chatMessages: { take: 5, orderBy: { createdAt: "desc" } },
+        },
+      }),
+      prisma.consultationRequest.count({
+        where: { status: "PENDING" },
+      }),
+      prisma.astrologerProfile.count({
+        where: { availabilityStatus: "ONLINE" },
+      }),
+      prisma.astrologerProfile.count({
+        where: { availabilityStatus: "BUSY" },
+      }),
+      prisma.consultationRequest.count({
+        where: {
+          status: "COMPLETED",
+          endedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        },
+      }),
+      prisma.consultationBillingRecord.aggregate({
+        _sum: {
+          totalAmountPaise: true,
+          platformCommissionPaise: true,
+          astrologerEarningsPaise: true,
+        },
+      }),
+      prisma.consultationDispute.count({
+        where: { status: "OPEN" },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        metrics: {
+          activeChats: activeSessions.length,
+          pendingRequests,
+          onlineAstrologers,
+          busyAstrologers,
+          completedToday,
+          openDisputes,
+          totalRevenueInr: Number(totalBilling._sum.totalAmountPaise || 0n) / 100,
+          platformCommissionInr: Number(totalBilling._sum.platformCommissionPaise || 0n) / 100,
+          pendingAstrologerEarningsInr: Number(totalBilling._sum.astrologerEarningsPaise || 0n) / 100,
+        },
+        activeConsultations: activeSessions.map((c) => ({
+          id: c.id,
+          type: c.type,
+          status: c.status,
+          ratePaisePerMinute: c.ratePaisePerMinute,
+          concern: c.concern,
+          astrologerName: c.astrologerProfile.displayName,
+          customerName: c.customer.fullName,
+          acceptedAt: c.acceptedAt?.toISOString() || null,
+          messageCount: c.chatMessages.length,
+        })),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 15. Super Admin Consultation Disputes
+adminRouter.get("/consultations/disputes", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const disputes = await prisma.consultationDispute.findMany({
+      include: {
+        consultation: {
+          include: {
+            astrologerProfile: true,
+            customer: true,
+            billingRecord: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({
+      success: true,
+      data: disputes.map((d) => ({
+        id: d.id,
+        consultationId: d.consultationId,
+        raisedById: d.raisedById,
+        reason: d.reason,
+        status: d.status,
+        adminNotes: d.adminNotes,
+        refundAmountInr: d.refundAmountPaise ? Number(d.refundAmountPaise) / 100 : null,
+        createdAt: d.createdAt.toISOString(),
+        customerName: d.consultation.customer.fullName,
+        astrologerName: d.consultation.astrologerProfile.displayName,
+        totalChargeInr: d.consultation.billingRecord ? Number(d.consultation.billingRecord.totalAmountPaise) / 100 : null,
+      })),
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
   }

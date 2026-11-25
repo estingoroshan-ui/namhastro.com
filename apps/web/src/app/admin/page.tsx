@@ -79,6 +79,19 @@ export default function SuperAdminDashboardPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [interviewForm, setInterviewForm] = useState({ scheduledAt: "", notes: "" });
   const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [liveMetrics, setLiveMetrics] = useState({
+    activeChats: 0,
+    pendingRequests: 0,
+    onlineAstrologers: 0,
+    busyAstrologers: 0,
+    completedToday: 0,
+    openDisputes: 0,
+    totalRevenueInr: 0,
+    platformCommissionInr: 0,
+    pendingAstrologerEarningsInr: 0,
+  });
+  const [activeConsultationsList, setActiveConsultationsList] = useState<any[]>([]);
+  const [disputesList, setDisputesList] = useState<any[]>([]);
 
   // Fetch Admin Records
   const fetchAdminData = async () => {
@@ -87,11 +100,13 @@ export default function SuperAdminDashboardPage() {
       setLoading(true);
       setErrorMsg("");
 
-      const [astroRes, appRes, rateRes, wdrRes] = await Promise.all([
+      const [astroRes, appRes, rateRes, wdrRes, liveRes, disputeRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/admin/astrologers`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/applications`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/rate-change-requests`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/withdrawals`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/admin/consultations/live`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/admin/consultations/disputes`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (astroRes.ok) {
@@ -109,6 +124,19 @@ export default function SuperAdminDashboardPage() {
       if (wdrRes.ok) {
         const d = await wdrRes.json();
         setWithdrawals(d.data || []);
+      }
+      if (liveRes.ok) {
+        const d = await liveRes.json();
+        if (d.success && d.data) {
+          setLiveMetrics(d.data.metrics || {});
+          setActiveConsultationsList(d.data.activeConsultations || []);
+        }
+      }
+      if (disputeRes.ok) {
+        const d = await disputeRes.json();
+        if (d.success && d.data) {
+          setDisputesList(d.data || []);
+        }
       }
     } catch {
       setErrorMsg("Failed to load admin data.");
@@ -595,6 +623,140 @@ export default function SuperAdminDashboardPage() {
               </div>
             )}
           </section>
+        )}
+
+        {/* Section: Live Consultations & Safety Control Centre */}
+        {activeId === "consultations" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            {/* Live Metrics Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.85rem" }}>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--online)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Active Live Chats</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>{liveMetrics.activeChats || 0}</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--online)", display: "block" }}>● Real-time WebSocket</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #F59E0B" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Pending Requests</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>{liveMetrics.pendingRequests || 0}</strong>
+                <span style={{ fontSize: "0.72rem", color: "#F59E0B", display: "block" }}>30s SLA Timeout</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Online Astrologers</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--royal-purple)" }}>{liveMetrics.onlineAstrologers || 0}</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>{liveMetrics.busyAstrologers || 0} busy in call</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--champagne-gold)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Completed Today</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>{liveMetrics.completedToday || 0}</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--online)", display: "block" }}>Settled via Double-Entry</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #10B981" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Platform Commission (20%)</span>
+                <strong style={{ fontSize: "1.6rem", color: "#10B981" }}>₹{(liveMetrics.platformCommissionInr || 0).toFixed(2)}</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>Total Gross: ₹{(liveMetrics.totalRevenueInr || 0).toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Active Live Sessions */}
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <Activity size={18} color="var(--royal-purple)" /> Active Consultation Sessions
+                </h2>
+                <button type="button" onClick={fetchAdminData} className="btn btn-outline btn-sm">
+                  <RefreshCw size={13} /> Refresh
+                </button>
+              </div>
+
+              {activeConsultationsList.length === 0 ? (
+                <p style={{ color: "var(--ink-muted)", fontSize: "0.85rem" }}>
+                  No consultations currently in progress. System is standing by for customer requests.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Customer</th>
+                        <th>Astrologer</th>
+                        <th>Concern</th>
+                        <th>Rate</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeConsultationsList.map((c) => (
+                        <tr key={c.id}>
+                          <td><strong>#{c.id.slice(-6)}</strong></td>
+                          <td><span className="status-pill status-online">{c.type}</span></td>
+                          <td>{c.customerName}</td>
+                          <td><strong>{c.astrologerName}</strong></td>
+                          <td>{c.concern || "General"}</td>
+                          <td>₹{(c.ratePaisePerMinute / 100).toFixed(2)}/min</td>
+                          <td><span className="status-pill status-online">{c.status}</span></td>
+                          <td>
+                            <Link
+                              href={`/consultation/chat?id=${c.id}&role=astrologer`}
+                              className="btn btn-purple btn-sm"
+                              style={{ padding: "0.2rem 0.5rem", fontSize: "0.72rem" }}
+                            >
+                              Inspect Room
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* Disputes & Safety Queue */}
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.25rem", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <ShieldCheck size={18} color="var(--royal-purple)" /> Customer Safety &amp; Dispute Queue
+              </h2>
+              {disputesList.length === 0 ? (
+                <p style={{ color: "var(--ink-muted)", fontSize: "0.85rem" }}>
+                  No customer disputes pending. All consultations completed with 100% satisfaction.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>Dispute ID</th>
+                        <th>Customer</th>
+                        <th>Astrologer</th>
+                        <th>Reason</th>
+                        <th>Charge</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {disputesList.map((d) => (
+                        <tr key={d.id}>
+                          <td><strong>#{d.id.slice(-6)}</strong></td>
+                          <td>{d.customerName}</td>
+                          <td>{d.astrologerName}</td>
+                          <td>{d.reason}</td>
+                          <td>{d.totalChargeInr ? `₹${d.totalChargeInr.toFixed(2)}` : "—"}</td>
+                          <td>
+                            <span className={d.status === "OPEN" ? "status-pill status-pending" : "status-pill status-online"}>
+                              {d.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
         )}
 
         {/* Approval Modal */}

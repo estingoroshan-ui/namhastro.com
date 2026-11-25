@@ -19,6 +19,7 @@ import { partnerRouter } from "./routes/partner.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { consultationsRouter } from "./routes/consultations.routes.js";
 import { walletRouter } from "./routes/wallet.routes.js";
+import { chatRouter } from "./routes/chat.routes.js";
 import { prisma } from "./db.js";
 
 export interface HealthDependencies {
@@ -59,14 +60,15 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 5,
+      step: 6,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
       uptimeSeconds: Math.floor(process.uptime()),
       dependencies: {
         mysql: databaseStatus,
-        redis: env.REDIS_URL ? "configured_pending_step_6" : "unconfigured",
+        redis: env.REDIS_URL ? "configured" : "in_memory_cluster_adapter",
+        websocket: "socket_io_realtime_configured",
         razorpay: env.RAZORPAY_KEY_ID ? "configured_and_active" : "simulation_mode",
         webrtc: "agora_configured_and_tested",
         firebase: "web_configured_service_account_pending",
@@ -148,6 +150,7 @@ export function createApp(deps: HealthDependencies = {}) {
   app.use("/api/v1/admin", adminRouter);
   app.use("/api/v1/consultations", consultationsRouter);
   app.use("/api/v1/wallet", walletRouter);
+  app.use("/api/v1/chat", chatRouter);
 
   // 404 Fallback
   app.use((_req, res) => {

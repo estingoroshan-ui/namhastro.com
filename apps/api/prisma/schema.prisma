@@ -303,6 +303,7 @@ model ConsultationRequest {
   acceptedAt          DateTime?
   rejectedAt          DateTime?
   rejectionReason     String?
+  startedAt           DateTime?
   endedAt             DateTime?
   durationSeconds     Int               @default(0)
   rating              Int?
@@ -311,6 +312,12 @@ model ConsultationRequest {
 
   customer            User              @relation("CustomerConsultationRequests", fields: [customerId], references: [id], onDelete: Cascade)
   astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Restrict)
+  chatMessages        ChatMessage[]
+  stateHistory        ConsultationStateHistory[]
+  privateNotes        PrivateConsultationNote[]
+  billingRecord       ConsultationBillingRecord?
+  consultationReview  ConsultationReview?
+  disputes            ConsultationDispute[]
 
   @@index([customerId, status])
   @@index([astrologerProfileId, status])
@@ -745,4 +752,106 @@ model ConsultationHold {
 
   @@index([customerId, status])
   @@map("consultation_holds")
+}
+
+model ChatMessage {
+  id              String              @id @default(cuid())
+  consultationId  String
+  clientMessageId String?             @db.VarChar(128)
+  senderId        String
+  senderRole      String              @db.VarChar(32)
+  type            String              @default("TEXT") @db.VarChar(32)
+  content         String              @db.Text
+  attachmentUrl   String?             @db.VarChar(512)
+  attachmentMeta  Json?
+  status          String              @default("SENT") @db.VarChar(32)
+  isRead          Boolean             @default(false)
+  readAt          DateTime?
+  createdAt       DateTime            @default(now())
+
+  consultation    ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, createdAt])
+  @@index([clientMessageId])
+  @@map("chat_messages")
+}
+
+model ConsultationStateHistory {
+  id              String              @id @default(cuid())
+  consultationId  String
+  fromState       String?             @db.VarChar(32)
+  toState         String              @db.VarChar(32)
+  reason          String?             @db.VarChar(255)
+  metadataJson    Json?
+  createdAt       DateTime            @default(now())
+
+  consultation    ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, createdAt])
+  @@map("consultation_state_history")
+}
+
+model ConsultationBillingRecord {
+  id                      String              @id @default(cuid())
+  consultationId          String              @unique
+  totalDurationSeconds    Int                 @default(0)
+  billableMinutes         Int                 @default(0)
+  ratePaisePerMinute      Int
+  totalAmountPaise        BigInt
+  promoAmountPaise        BigInt              @default(0)
+  paidAmountPaise         BigInt              @default(0)
+  astrologerEarningsPaise BigInt
+  platformCommissionPaise BigInt
+  finalizedAt             DateTime            @default(now())
+
+  consultation            ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@map("consultation_billing_records")
+}
+
+model ConsultationReview {
+  id                  String              @id @default(cuid())
+  consultationId      String              @unique
+  customerId          String
+  astrologerProfileId String
+  rating              Int
+  reviewText          String?             @db.Text
+  isPublic            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+
+  consultation        ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, isPublic])
+  @@map("consultation_reviews")
+}
+
+model PrivateConsultationNote {
+  id                  String              @id @default(cuid())
+  consultationId      String
+  astrologerProfileId String
+  note                String              @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  consultation        ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+  @@map("private_consultation_notes")
+}
+
+model ConsultationDispute {
+  id                String              @id @default(cuid())
+  consultationId    String
+  raisedById        String
+  reason            String              @db.VarChar(255)
+  status            String              @default("OPEN") @db.VarChar(32)
+  adminNotes        String?             @db.Text
+  refundAmountPaise BigInt?
+  createdAt         DateTime            @default(now())
+  resolvedAt        DateTime?
+
+  consultation      ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, status])
+  @@map("consultation_disputes")
 }

@@ -263,7 +263,7 @@ customerRouter.post("/birth-profiles", async (req: AuthenticatedRequest, res: Re
 
 customerRouter.put("/birth-profiles/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const existing = await prisma.birthProfile.findFirst({
       where: { id, userId: req.user!.id },
     });
@@ -312,7 +312,7 @@ customerRouter.put("/birth-profiles/:id", async (req: AuthenticatedRequest, res:
 
 customerRouter.delete("/birth-profiles/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const existing = await prisma.birthProfile.findFirst({
       where: { id, userId: req.user!.id },
     });
@@ -332,7 +332,7 @@ customerRouter.delete("/birth-profiles/:id", async (req: AuthenticatedRequest, r
 
 customerRouter.post("/birth-profiles/:id/default", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const existing = await prisma.birthProfile.findFirst({
       where: { id, userId: req.user!.id },
     });
@@ -388,7 +388,7 @@ customerRouter.get("/favourites", async (req: AuthenticatedRequest, res: Respons
 
 customerRouter.post("/favourites/:astrologerProfileId", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { astrologerProfileId } = req.params;
+    const astrologerProfileId = String(req.params.astrologerProfileId);
 
     const existing = await prisma.astrologerFavourite.findUnique({
       where: {
@@ -442,7 +442,7 @@ customerRouter.get("/following", async (req: AuthenticatedRequest, res: Response
 
 customerRouter.post("/following/:astrologerProfileId", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { astrologerProfileId } = req.params;
+    const astrologerProfileId = String(req.params.astrologerProfileId);
 
     const existing = await prisma.astrologerFollower.findUnique({
       where: {
@@ -561,7 +561,7 @@ customerRouter.post("/support/tickets", async (req: AuthenticatedRequest, res: R
 
 customerRouter.get("/support/tickets/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const ticket = await prisma.supportTicket.findFirst({
       where: {
         id,
@@ -592,7 +592,7 @@ const replyTicketSchema = z.object({
 
 customerRouter.post("/support/tickets/:id/reply", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const parsed = replyTicketSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "INVALID_REQUEST", message: "Message content is required." });
@@ -665,7 +665,7 @@ customerRouter.get("/notifications", async (req: AuthenticatedRequest, res: Resp
 
 customerRouter.post("/notifications/:id/read", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
     await prisma.notification.updateMany({
       where: { id, userId: req.user!.id },
       data: { isRead: true, readAt: new Date() },
