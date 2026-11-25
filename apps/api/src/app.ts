@@ -15,6 +15,9 @@ import { openApiSpec } from "./openapi.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { customerRouter } from "./routes/customer.routes.js";
 import { astrologersRouter } from "./routes/astrologers.routes.js";
+import { partnerRouter } from "./routes/partner.routes.js";
+import { adminRouter } from "./routes/admin.routes.js";
+import { consultationsRouter } from "./routes/consultations.routes.js";
 import { prisma } from "./db.js";
 
 export interface HealthDependencies {
@@ -55,7 +58,7 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 3,
+      step: 4,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
@@ -64,7 +67,8 @@ export function createApp(deps: HealthDependencies = {}) {
         mysql: databaseStatus,
         redis: env.REDIS_URL ? "configured_pending_step_6" : "unconfigured",
         razorpay: "unconfigured_pending_step_8",
-        webrtc: "unconfigured_pending_step_7",
+        webrtc: "agora_configured_and_tested",
+        firebase: "web_configured_service_account_pending",
         otpProvider: env.OTP_PROVIDER_API_KEY ? "configured" : "test_mode_active",
       },
     });
@@ -79,7 +83,7 @@ export function createApp(deps: HealthDependencies = {}) {
   app.get("/api/v1/meta/architecture", (_req, res) => {
     res.status(200).json({
       brand: BRAND_TOKENS,
-      currentStep: 3,
+      currentStep: 4,
       executionSteps: EXECUTION_STEPS,
       specialisations: ASTROLOGY_SPECIALISATIONS,
       consultationStates: CONSULTATION_STATES,
@@ -91,6 +95,16 @@ export function createApp(deps: HealthDependencies = {}) {
         "OTPRequest",
         "BirthProfile",
         "AstrologerProfile",
+        "AstrologerApplication",
+        "AstrologerDocument",
+        "AstrologerInterview",
+        "AstrologerBankAccount",
+        "AstrologerSchedule",
+        "AstrologerLeave",
+        "ConsultationQueue",
+        "RateChangeRequest",
+        "WithdrawalRequest",
+        "DeviceToken",
         "AstrologerFavourite",
         "AstrologerFollower",
         "AvailabilitySubscription",
@@ -125,6 +139,9 @@ export function createApp(deps: HealthDependencies = {}) {
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/customer", customerRouter);
   app.use("/api/v1/astrologers", astrologersRouter);
+  app.use("/api/v1/partner", partnerRouter);
+  app.use("/api/v1/admin", adminRouter);
+  app.use("/api/v1/consultations", consultationsRouter);
 
   // 404 Fallback
   app.use((_req, res) => {

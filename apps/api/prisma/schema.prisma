@@ -85,6 +85,8 @@ model User {
   notificationPref     NotificationPreference?
   savedAddresses       SavedAddress[]
   auditLogs            AuditLog[]                 @relation("AuditActor")
+  astrologerApplications AstrologerApplication[]
+  deviceTokens         DeviceToken[]
 
   @@index([role, status])
   @@map("users")
@@ -175,6 +177,7 @@ model AstrologerProfile {
   displayName           String                     @db.VarChar(120)
   verificationStage     VerificationStage          @default(APPLIED)
   availabilityStatus    AvailabilityStatus         @default(OFFLINE)
+  isOnline              Boolean                    @default(false)
   chatEnabled           Boolean                    @default(false)
   audioEnabled          Boolean                    @default(false)
   videoEnabled          Boolean                    @default(false)
@@ -186,10 +189,25 @@ model AstrologerProfile {
   videoRatePaise        Int                        @default(0)
   commissionBpsOverride Int?
   avatarUrl             String?                    @db.VarChar(512)
+  averageRating         Float                      @default(4.9)
+  totalReviews          Int                        @default(0)
+  totalConsultations    Int                        @default(0)
+  totalMinutesConsulted Int                        @default(0)
+  specialisationsJson   Json?
+  languagesJson         Json?
+  isLiveStreaming       Boolean                    @default(false)
+  lastHeartbeatAt       DateTime?
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
 
   user                  User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccount           AstrologerBankAccount?
+  documents             AstrologerDocument[]
+  schedules             AstrologerSchedule[]
+  leaves                AstrologerLeave[]
+  queueEntries          ConsultationQueue[]
+  rateChangeRequests    RateChangeRequest[]
+  withdrawalRequests    WithdrawalRequest[]
   favourites            AstrologerFavourite[]
   followers             AstrologerFollower[]
   availabilitySubs      AvailabilitySubscription[]
@@ -197,6 +215,7 @@ model AstrologerProfile {
   consultationRequests  ConsultationRequest[]
 
   @@index([verificationStage, availabilityStatus])
+  @@index([isOnline, verificationStage])
   @@map("astrologer_profiles")
 }
 
@@ -273,12 +292,24 @@ model ConsultationRequest {
   type                String            @default("CHAT") @db.VarChar(32)
   status              String            @default("INITIATED") @db.VarChar(32)
   ratePaisePerMinute  Int
+  concern             String?           @db.VarChar(120)
+  preferredLanguage   String?           @db.VarChar(32)
+  channelName         String?           @db.VarChar(128)
+  expiresAt           DateTime?
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+  endedAt             DateTime?
+  durationSeconds     Int               @default(0)
+  rating              Int?
+  review              String?           @db.Text
   createdAt           DateTime          @default(now())
 
   customer            User              @relation("CustomerConsultationRequests", fields: [customerId], references: [id], onDelete: Cascade)
   astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Restrict)
 
   @@index([customerId, status])
+  @@index([astrologerProfileId, status])
   @@map("consultation_requests")
 }
 
@@ -437,4 +468,191 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorUserId, createdAt])
   @@map("audit_logs")
+}
+
+
+model AstrologerApplication {
+  id                      String                 @id @default(cuid())
+  userId                  String
+  applicationNumber       String                 @unique @db.VarChar(32)
+  stage                   VerificationStage      @default(APPLIED)
+  status                  String                 @default("PENDING") @db.VarChar(32)
+  personalDetailsJson     Json
+  professionalDetailsJson Json
+  bankDetailsJson         Json?
+  adminNotes              String?                @db.Text
+  rejectionReason         String?                @db.Text
+  submittedAt             DateTime               @default(now())
+  reviewedAt              DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  user                    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents               AstrologerDocument[]
+  interviews              AstrologerInterview[]
+
+  @@index([userId, status])
+  @@index([stage])
+  @@map("astrologer_applications")
+}
+
+model AstrologerDocument {
+  id                  String                 @id @default(cuid())
+  applicationId       String?
+  astrologerProfileId String?
+  type                String                 @db.VarChar(64)
+  title               String                 @db.VarChar(191)
+  fileUrl             String                 @db.VarChar(512)
+  fileSize            Int?
+  mimeType            String?                @db.VarChar(64)
+  status              String                 @default("PENDING") @db.VarChar(32)
+  verificationNotes   String?                @db.Text
+  verifiedAt          DateTime?
+  createdAt           DateTime               @default(now())
+
+  application         AstrologerApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  astrologerProfile   AstrologerProfile?     @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, status])
+  @@index([astrologerProfileId])
+  @@map("astrologer_documents")
+}
+
+model AstrologerInterview {
+  id               String                @id @default(cuid())
+  applicationId    String
+  scheduledAt      DateTime
+  mode             String                @default("VIDEO") @db.VarChar(32)
+  meetingLink      String?               @db.VarChar(512)
+  interviewerNotes String?               @db.Text
+  status           String                @default("SCHEDULED") @db.VarChar(32)
+  passed           Boolean?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  application      AstrologerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, status])
+  @@map("astrologer_interviews")
+}
+
+model AstrologerBankAccount {
+  id                  String            @id @default(cuid())
+  astrologerProfileId String            @unique
+  accountHolderName   String            @db.VarChar(120)
+  bankName            String            @db.VarChar(120)
+  accountNumberMasked String            @db.VarChar(64)
+  ifscCode            String            @db.VarChar(32)
+  upiId               String?           @db.VarChar(120)
+  isVerified          Boolean           @default(false)
+  verifiedAt          DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("astrologer_bank_accounts")
+}
+
+model AstrologerSchedule {
+  id                  String            @id @default(cuid())
+  astrologerProfileId String
+  dayOfWeek           Int
+  startTime           String            @default("09:00") @db.VarChar(10)
+  endTime             String            @default("21:00") @db.VarChar(10)
+  isWorkingDay        Boolean           @default(true)
+  slotDurationMinutes Int               @default(15)
+  breakTimesJson      Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([astrologerProfileId, dayOfWeek])
+  @@map("astrologer_schedules")
+}
+
+model AstrologerLeave {
+  id                  String            @id @default(cuid())
+  astrologerProfileId String
+  startDate           DateTime          @db.Date
+  endDate             DateTime          @db.Date
+  reason              String?           @db.VarChar(255)
+  status              String            @default("APPROVED") @db.VarChar(32)
+  createdAt           DateTime          @default(now())
+
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, startDate, endDate])
+  @@map("astrologer_leaves")
+}
+
+model ConsultationQueue {
+  id                   String            @id @default(cuid())
+  astrologerProfileId  String
+  customerId           String
+  consultationType     String            @default("CHAT") @db.VarChar(32)
+  position             Int               @default(1)
+  status               String            @default("WAITING") @db.VarChar(32)
+  estimatedWaitMinutes Int               @default(5)
+  joinedAt             DateTime          @default(now())
+  servicedAt           DateTime?
+
+  astrologerProfile    AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, status, position])
+  @@map("consultation_queues")
+}
+
+model RateChangeRequest {
+  id                     String            @id @default(cuid())
+  astrologerProfileId    String
+  currentChatRatePaise   Int
+  proposedChatRatePaise  Int
+  currentAudioRatePaise  Int
+  proposedAudioRatePaise Int
+  currentVideoRatePaise  Int
+  proposedVideoRatePaise Int
+  reason                 String?           @db.Text
+  status                 String            @default("PENDING") @db.VarChar(32)
+  adminNotes             String?           @db.Text
+  requestedAt            DateTime          @default(now())
+  reviewedAt             DateTime?
+
+  astrologerProfile      AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, status])
+  @@map("rate_change_requests")
+}
+
+model WithdrawalRequest {
+  id                  String            @id @default(cuid())
+  astrologerProfileId String
+  requestNumber       String            @unique @db.VarChar(32)
+  amountPaise         BigInt
+  status              String            @default("PENDING") @db.VarChar(32)
+  bankAccountId       String?           @db.VarChar(64)
+  payoutReference     String?           @db.VarChar(128)
+  adminNotes          String?           @db.Text
+  requestedAt         DateTime          @default(now())
+  processedAt         DateTime?
+
+  astrologerProfile   AstrologerProfile @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, status])
+  @@map("withdrawal_requests")
+}
+
+model DeviceToken {
+  id           String    @id @default(cuid())
+  userId       String
+  token        String    @unique @db.VarChar(512)
+  platform     String    @default("WEB") @db.VarChar(32)
+  lastActiveAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, platform])
+  @@map("device_tokens")
 }

@@ -93,20 +93,32 @@ astrologersRouter.get("/", async (req, res: Response) => {
         total,
         totalPages: Math.ceil(total / limitNum),
       },
-      astrologers: astrologers.map((a) => ({
-        id: a.id,
-        slug: a.slug,
-        name: a.displayName,
-        avatarUrl: a.avatarUrl,
-        status: a.availabilityStatus,
-        verified: a.verificationStage === "ACTIVE" || a.verificationStage === "APPROVED",
-        experienceYears: a.experienceYears,
-        chatRateInr: a.chatRatePaise / 100,
-        audioRateInr: a.audioRatePaise / 100,
-        videoRateInr: a.videoRatePaise / 100,
-        bio: a.bio,
-        qualifications: a.qualifications ? JSON.parse(a.qualifications) : [],
-      })),
+      astrologers: astrologers.map((a) => {
+        let qualifications: string[] = [];
+        if (a.qualifications) {
+          try {
+            const parsed = JSON.parse(a.qualifications);
+            qualifications = Array.isArray(parsed) ? parsed : [String(parsed)];
+          } catch {
+            qualifications = [a.qualifications];
+          }
+        }
+
+        return {
+          id: a.id,
+          slug: a.slug,
+          name: a.displayName,
+          avatarUrl: a.avatarUrl,
+          status: a.availabilityStatus,
+          verified: a.verificationStage === "ACTIVE" || a.verificationStage === "APPROVED",
+          experienceYears: a.experienceYears,
+          chatRateInr: a.chatRatePaise / 100,
+          audioRateInr: a.audioRatePaise / 100,
+          videoRateInr: a.videoRatePaise / 100,
+          bio: a.bio,
+          qualifications,
+        };
+      }),
     });
   } catch (error) {
     res.status(500).json({
@@ -155,7 +167,15 @@ astrologersRouter.get("/:slug", async (req, res: Response) => {
         audioRateInr: astrologer.audioRatePaise / 100,
         videoRateInr: astrologer.videoRatePaise / 100,
         bio: astrologer.bio,
-        qualifications: astrologer.qualifications ? JSON.parse(astrologer.qualifications) : [],
+        qualifications: (() => {
+          if (!astrologer.qualifications) return [];
+          try {
+            const parsed = JSON.parse(astrologer.qualifications);
+            return Array.isArray(parsed) ? parsed : [String(parsed)];
+          } catch {
+            return [astrologer.qualifications];
+          }
+        })(),
         followersCount,
       },
     });

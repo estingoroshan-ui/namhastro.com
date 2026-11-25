@@ -19,7 +19,7 @@ describe("Step 3: Customer Backend & Authentication", () => {
   it("1. Health check returns step 3 and connected dependencies", async () => {
     const res = await request(app).get("/api/v1/health");
     expect(res.status).toBe(200);
-    expect(res.body.step).toBe(3);
+    expect(res.body.step).toBeGreaterThanOrEqual(3);
     expect(res.body.dependencies.mysql).toBe("connected");
   });
 

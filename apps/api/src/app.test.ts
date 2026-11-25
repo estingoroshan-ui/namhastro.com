@@ -13,7 +13,7 @@ describe("NAMH ASTRO API — Step 1 & Step 3 Foundation", () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
     expect(res.body.service).toBe("namhastro-api");
-    expect(res.body.step).toBe(3);
+    expect(res.body.step).toBe(4);
     expect(res.body.dependencies.mysql).toBe("connected");
     expect(res.headers["x-powered-by"]).toBeUndefined();
   });

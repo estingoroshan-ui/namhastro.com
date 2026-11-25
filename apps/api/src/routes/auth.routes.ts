@@ -230,9 +230,7 @@ authRouter.post("/otp/verify", async (req, res: Response) => {
       req.ip
     );
 
-    res.status(200).json({
-      success: true,
-      isNewUser,
+    const payload = {
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -254,6 +252,13 @@ authRouter.post("/otp/verify", async (req, res: Response) => {
         refreshToken: session.refreshToken,
         expiresAt: session.sessionExpiresAt.toISOString(),
       },
+    };
+
+    res.status(200).json({
+      success: true,
+      isNewUser,
+      ...payload,
+      data: payload,
     });
   } catch (error) {
     res.status(500).json({
@@ -347,8 +352,7 @@ authRouter.post("/register", async (req, res: Response) => {
       req.ip
     );
 
-    res.status(201).json({
-      success: true,
+    const payload = {
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -368,6 +372,12 @@ authRouter.post("/register", async (req, res: Response) => {
         refreshToken: session.refreshToken,
         expiresAt: session.sessionExpiresAt.toISOString(),
       },
+    };
+
+    res.status(201).json({
+      success: true,
+      ...payload,
+      data: payload,
     });
   } catch (error) {
     res.status(500).json({
@@ -378,8 +388,11 @@ authRouter.post("/register", async (req, res: Response) => {
 });
 
 const loginSchema = z.object({
-  identifier: z.string().min(3), // email or phone
+  identifier: z.string().min(3).optional(),
+  email: z.string().email().optional(),
   password: z.string().min(1),
+}).refine((data) => data.identifier || data.email, {
+  message: "Either identifier or email is required.",
 });
 
 authRouter.post("/login", async (req, res: Response) => {
@@ -393,7 +406,8 @@ authRouter.post("/login", async (req, res: Response) => {
       return;
     }
 
-    const { identifier, password } = parsed.data;
+    const identifier = parsed.data.identifier || parsed.data.email!;
+    const password = parsed.data.password;
 
     let user = await prisma.user.findFirst({
       where: {
@@ -438,8 +452,7 @@ authRouter.post("/login", async (req, res: Response) => {
       req.ip
     );
 
-    res.status(200).json({
-      success: true,
+    const payload = {
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -460,6 +473,12 @@ authRouter.post("/login", async (req, res: Response) => {
         refreshToken: session.refreshToken,
         expiresAt: session.sessionExpiresAt.toISOString(),
       },
+    };
+
+    res.status(200).json({
+      success: true,
+      ...payload,
+      data: payload,
     });
   } catch (error) {
     res.status(500).json({
