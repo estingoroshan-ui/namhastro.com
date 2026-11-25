@@ -27,6 +27,11 @@ const envSchema = z.object({
   RTC_PROVIDER: z.string().default("agora"),
   RTC_APP_ID: z.string().optional(),
   RTC_APP_CERTIFICATE: z.string().optional(),
+  FCM_PROJECT_ID: z.string().optional(),
+  STORAGE_BUCKET: z.string().optional(),
+  FIREBASE_API_KEY: z.string().optional(),
+  FIREBASE_AUTH_DOMAIN: z.string().optional(),
+  FIREBASE_APP_ID: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
