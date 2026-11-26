@@ -694,7 +694,7 @@ export default function SuperAdminDashboardPage() {
         >
           <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10B981" }} />
-            Step 11 Active
+            Production V1.0 Active
           </span>
           <span style={{ color: "#F2C96B" }}>MariaDB · Agora · RZP</span>
         </div>
@@ -728,7 +728,7 @@ export default function SuperAdminDashboardPage() {
                 letterSpacing: "0.06em",
               }}
             >
-              Enterprise Business Control Center · Verified Step 11
+              Enterprise Business Control Center · Production V1.0
             </span>
             <h1
               className="serif-heading"
