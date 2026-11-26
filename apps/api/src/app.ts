@@ -26,6 +26,7 @@ import { panditRouter } from "./routes/pandit.routes.js";
 import { storeRouter } from "./routes/store.routes.js";
 import { marketingRouter } from "./routes/marketing.routes.js";
 import { adminMarketplaceRouter } from "./routes/admin-marketplace.routes.js";
+import { adminEnterpriseRouter } from "./routes/admin-enterprise.routes.js";
 import { prisma } from "./db.js";
 
 // BigInt JSON serialization support
@@ -71,7 +72,7 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 10,
+      step: 11,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
@@ -87,6 +88,7 @@ export function createApp(deps: HealthDependencies = {}) {
         otpProvider: env.OTP_PROVIDER_API_KEY ? "configured" : "test_mode_active",
         financeEngine: "enterprise_ledger_and_reconciliation_active",
         marketplaceEngine: "puja_pandit_store_ecommerce_active",
+        enterpriseControlCenter: "active_super_admin_staff_crm",
       },
     });
   });
@@ -171,6 +173,7 @@ export function createApp(deps: HealthDependencies = {}) {
   app.use("/api/v1/store", storeRouter);
   app.use("/api/v1/marketing", marketingRouter);
   app.use("/api/v1/admin/marketplace", adminMarketplaceRouter);
+  app.use("/api/v1/admin/enterprise", adminEnterpriseRouter);
 
   // 404 Fallback
   app.use((_req, res) => {

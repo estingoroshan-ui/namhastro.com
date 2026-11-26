@@ -15,6 +15,8 @@ enum UserRole {
   FINANCE
   VERIFICATION
   MARKETING
+  STAFF
+  BUSINESS_OWNER
   SUPER_ADMIN
 }
 
@@ -101,6 +103,7 @@ model User {
   referralRewardsGiven ReferralReward[]           @relation("ReferrerRewards")
   referralRewardsRecv  ReferralReward[]           @relation("RefereeRewards")
   couponRedemptions    CouponRedemption[]
+  staffProfile         StaffProfile?
 
   @@index([role, status])
   @@map("users")
@@ -1834,4 +1837,294 @@ model CMSSection {
   updatedAt             DateTime          @updatedAt
 
   @@map("cms_sections")
+}
+
+
+// ==========================================
+// STEP 11: ENTERPRISE SUPER ADMIN, STAFF CRM,
+// LEADS, DISPUTES, CMS & BUSINESS CONTROL
+// ==========================================
+
+enum LeadSource {
+  WEBSITE_ENQUIRY
+  ANDROID_APP
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE_ADS
+  WHATSAPP
+  REFERRAL
+  ORGANIC_SEARCH
+  MANUAL_ENTRY
+  API_INTEGRATION
+}
+
+enum LeadStatus {
+  NEW_LEAD
+  ASSIGNED
+  CONTACTED
+  INTERESTED
+  FOLLOW_UP
+  PAYMENT_PENDING
+  CONVERTED
+  NOT_INTERESTED
+  CLOSED
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DisputeCategory {
+  CONSULTATION_ISSUE
+  ASTROLOGER_COMPLAINT
+  BILLING_DISPUTE
+  INCORRECT_WALLET_DEDUCTION
+  PUJA_SERVICE_COMPLAINT
+  PRODUCT_AUTHENTICITY
+  DELIVERY_COMPLAINT
+  PAYOUT_DISPUTE
+  REPORT_QUALITY
+  LIVE_STREAMING
+  GENERAL
+}
+
+enum DisputeStatus {
+  FILED
+  ASSIGNED
+  UNDER_INVESTIGATION
+  RESOLVED
+  REFUND_RECOMMENDED
+  REFUND_PROCESSED
+  REJECTED
+  APPEALED
+  CLOSED
+}
+
+model Department {
+  id          String        @id @default(cuid())
+  name        String        @unique @db.VarChar(64)
+  code        String        @unique @db.VarChar(32)
+  description String?       @db.VarChar(255)
+  headUserId  String?       @db.VarChar(64)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  staff       StaffProfile[]
+  tasks       StaffTask[]
+
+  @@map("departments")
+}
+
+model CustomRole {
+  id              String        @id @default(cuid())
+  name            String        @unique @db.VarChar(64)
+  code            String        @unique @db.VarChar(32)
+  description     String?       @db.VarChar(255)
+  permissionsJson Json
+  isSystem        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  staff           StaffProfile[]
+
+  @@map("custom_roles")
+}
+
+model StaffProfile {
+  id                 String          @id @default(cuid())
+  userId             String          @unique
+  employeeId         String          @unique @db.VarChar(32)
+  departmentId       String?
+  customRoleId       String?
+  designation        String          @db.VarChar(120)
+  reportingManagerId String?         @db.VarChar(64)
+  joiningDate        DateTime        @default(now())
+  employmentStatus   String          @default("FULL_TIME") @db.VarChar(32)
+  workLocation       String          @default("HQ_VARANASI") @db.VarChar(64)
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department         Department?     @relation(fields: [departmentId], references: [id])
+  customRole         CustomRole?     @relation(fields: [customRoleId], references: [id])
+  loginLogs          StaffLoginLog[]
+
+  @@map("staff_profiles")
+}
+
+model StaffLoginLog {
+  id            String       @id @default(cuid())
+  staffId       String
+  ipAddress     String?      @db.VarChar(64)
+  userAgent     String?      @db.VarChar(255)
+  status        String       @default("SUCCESS") @db.VarChar(32)
+  failureReason String?      @db.VarChar(120)
+  createdAt     DateTime     @default(now())
+
+  staff         StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, createdAt])
+  @@map("staff_login_logs")
+}
+
+model StaffTask {
+  id               String       @id @default(cuid())
+  taskNumber       String       @unique @db.VarChar(32)
+  title            String       @db.VarChar(191)
+  description      String?      @db.Text
+  departmentId     String?
+  assignedToUserId String?      @db.VarChar(64)
+  createdByUserId  String       @db.VarChar(64)
+  priority         TaskPriority @default(NORMAL)
+  status           TaskStatus   @default(PENDING)
+  dueDate          DateTime?
+  completedAt      DateTime?
+  internalNotes    String?      @db.Text
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  department       Department?  @relation(fields: [departmentId], references: [id])
+
+  @@index([assignedToUserId, status])
+  @@map("staff_tasks")
+}
+
+model Lead {
+  id                  String       @id @default(cuid())
+  leadNumber          String       @unique @db.VarChar(32)
+  fullName            String       @db.VarChar(120)
+  phoneE164           String       @db.VarChar(20)
+  email               String?      @db.VarChar(191)
+  city                String?      @db.VarChar(100)
+  interestedService   String?      @db.VarChar(100)
+  source              LeadSource   @default(WEBSITE_ENQUIRY)
+  campaign            String?      @db.VarChar(100)
+  assignedToUserId    String?      @db.VarChar(64)
+  convertedUserId     String?      @db.VarChar(64)
+  priority            LeadPriority @default(MEDIUM)
+  status              LeadStatus   @default(NEW_LEAD)
+  followupDate        DateTime?
+  notes               String?      @db.Text
+  estimatedValuePaise BigInt       @default(0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  activities          LeadActivity[]
+
+  @@index([status, priority])
+  @@index([assignedToUserId, status])
+  @@index([phoneE164])
+  @@map("crm_leads")
+}
+
+model LeadActivity {
+  id                String       @id @default(cuid())
+  leadId            String
+  action            String       @db.VarChar(64)
+  notes             String?      @db.Text
+  performedByUserId String?      @db.VarChar(64)
+  createdAt         DateTime     @default(now())
+
+  lead              Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@map("crm_lead_activities")
+}
+
+model DisputeComplaint {
+  id                    String          @id @default(cuid())
+  complaintNumber       String          @unique @db.VarChar(32)
+  customerId            String          @db.VarChar(64)
+  category              DisputeCategory @default(GENERAL)
+  subject               String          @db.VarChar(191)
+  description           String          @db.Text
+  evidenceUrlsJson      Json?
+  relatedConsultationId String?         @db.VarChar(64)
+  relatedOrderId        String?         @db.VarChar(64)
+  relatedBookingId      String?         @db.VarChar(64)
+  relatedTransactionId  String?         @db.VarChar(64)
+  assignedStaffId       String?         @db.VarChar(64)
+  status                DisputeStatus   @default(FILED)
+  investigationNotes    String?         @db.Text
+  resolutionDecision    String?         @db.Text
+  refundAmountPaise     BigInt          @default(0)
+  isRefundProcessed     Boolean         @default(false)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([customerId, status])
+  @@map("dispute_complaints")
+}
+
+model NotificationTemplate {
+  id            String       @id @default(cuid())
+  code          String       @unique @db.VarChar(64)
+  channel       String       @default("PUSH") @db.VarChar(32)
+  titleTemplate String       @db.VarChar(191)
+  bodyTemplate  String       @db.Text
+  variablesJson Json?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("notification_templates")
+}
+
+model CMSSetting {
+  id           String       @id @default(cuid())
+  settingKey   String       @unique @db.VarChar(64)
+  settingValue String       @db.Text
+  category     String       @default("GENERAL") @db.VarChar(32)
+  isEncrypted  Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("cms_settings")
+}
+
+model SystemHealthSnapshot {
+  id                String     @id @default(cuid())
+  cpuUsagePct       Float      @default(0.0)
+  memoryUsageMb     Float      @default(0.0)
+  activeConnections Int        @default(0)
+  status            String     @default("HEALTHY") @db.VarChar(32)
+  diagnosticsJson   Json?
+  createdAt         DateTime   @default(now())
+
+  @@map("system_health_snapshots")
+}
+
+model BackupRecord {
+  id             String     @id @default(cuid())
+  backupNumber   String     @unique @db.VarChar(32)
+  scope          String     @default("FULL_DATABASE") @db.VarChar(64)
+  storagePath    String     @db.VarChar(255)
+  sizeBytes      BigInt     @default(0)
+  checksumSha256 String?    @db.VarChar(64)
+  status         String     @default("COMPLETED") @db.VarChar(32)
+  testedRestoreAt DateTime?
+  createdAt      DateTime   @default(now())
+
+  @@map("backup_records")
 }
