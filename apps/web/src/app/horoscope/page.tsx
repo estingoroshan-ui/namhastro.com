@@ -219,7 +219,7 @@ export default function DailyHoroscopePage() {
                     {sign.name} ({sign.hindi}) — {timeframe === "daily" ? "Today's Guidance" : timeframe === "weekly" ? "Weekly Outlook" : "Monthly Forecast"}
                   </h2>
                   <span style={{ fontSize: "0.82rem", color: "#666" }}>
-                    Ruler: <strong>{sign.ruler}</strong> · Element: <strong>{sign.element}</strong> · Quality: <strong>Fixed Cardinal</strong>
+                    Dates: <strong>{sign.dates}</strong> · Element: <strong>{sign.element}</strong>
                   </span>
                 </div>
               </div>
