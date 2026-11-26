@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { FirebaseService } from "../services/firebase.service.js";
+import { EarningsService } from "../services/earnings.service.js";
+import { CommissionService } from "../services/commission.service.js";
 
 export const partnerRouter = Router();
 
@@ -484,11 +486,199 @@ partnerRouter.post("/rate-change-request", requireAuth, async (req: Authenticate
   }
 });
 
-// 8. Withdrawal Request
+// 8. Dedicated Astrologer Earnings & Ledger Endpoint (Step 8)
+partnerRouter.get("/earnings", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await prisma.astrologerProfile.findUnique({
+      where: { userId },
+      include: {
+        bankAccount: true,
+      },
+    });
+
+    if (!profile) {
+      res.status(404).json({ success: false, error: "PROFILE_NOT_FOUND" });
+      return;
+    }
+
+    const summary = await EarningsService.getSummary(profile.id);
+
+    // Fetch recent ledger entries
+    const ledgerEntries = await prisma.earningsLedgerEntry.findMany({
+      where: { astrologerProfileId: profile.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    // Fetch recent withdrawal requests
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { astrologerProfileId: profile.id },
+      orderBy: { requestedAt: "desc" },
+      take: 20,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        summary,
+        bankAccount: profile.bankAccount
+          ? {
+              id: profile.bankAccount.id,
+              accountHolderName: profile.bankAccount.accountHolderName,
+              bankName: profile.bankAccount.bankName,
+              accountNumberMasked: profile.bankAccount.accountNumberMasked,
+              ifscCode: profile.bankAccount.ifscCode,
+              accountType: profile.bankAccount.accountType,
+              panNumber: profile.bankAccount.panNumber,
+              isVerified: profile.bankAccount.isVerified,
+            }
+          : null,
+        ledgerEntries: ledgerEntries.map((e) => ({
+          id: e.id,
+          type: e.type,
+          amountPaise: e.amountPaise.toString(),
+          amountInr: (Number(e.amountPaise) / 100).toFixed(2),
+          balanceAfterInr: (Number(e.balanceAfterPaise) / 100).toFixed(2),
+          status: e.status,
+          description: e.description,
+          createdAt: e.createdAt,
+          metadata: e.metadataJson,
+        })),
+        withdrawals: withdrawals.map((w) => ({
+          id: w.id,
+          requestNumber: w.requestNumber,
+          amountInr: (Number(w.amountPaise) / 100).toFixed(2),
+          tdsAmountInr: (Number(w.tdsAmountPaise) / 100).toFixed(2),
+          netAmountInr: (Number(w.netAmountPaise) / 100).toFixed(2),
+          status: w.status,
+          utrNumber: w.utrNumber,
+          rejectionReason: w.rejectionReason,
+          requestedAt: w.requestedAt,
+          processedAt: w.processedAt,
+        })),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 9. Bank Account Management
+partnerRouter.get("/bank-account", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await prisma.astrologerProfile.findUnique({
+      where: { userId },
+      include: { bankAccount: true },
+    });
+
+    if (!profile) {
+      res.status(404).json({ success: false, error: "PROFILE_NOT_FOUND" });
+      return;
+    }
+
+    if (!profile.bankAccount) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: profile.bankAccount.id,
+        accountHolderName: profile.bankAccount.accountHolderName,
+        bankName: profile.bankAccount.bankName,
+        accountNumberMasked: profile.bankAccount.accountNumberMasked,
+        ifscCode: profile.bankAccount.ifscCode,
+        accountType: profile.bankAccount.accountType,
+        panNumber: profile.bankAccount.panNumber,
+        upiId: profile.bankAccount.upiId,
+        isVerified: profile.bankAccount.isVerified,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+partnerRouter.post("/bank-account", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      accountHolderName: z.string().min(2).max(120),
+      bankName: z.string().min(2).max(120),
+      accountNumber: z.string().min(8).max(24),
+      ifscCode: z.string().length(11).regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC code format"),
+      accountType: z.enum(["SAVINGS", "CURRENT"]).default("SAVINGS"),
+      panNumber: z.string().length(10).regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format").optional(),
+      upiId: z.string().min(3).max(64).optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: "VALIDATION_FAILED", details: parsed.error.format() });
+      return;
+    }
+
+    const data = parsed.data;
+    const userId = req.user!.id;
+    const profile = await prisma.astrologerProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      res.status(404).json({ success: false, error: "PROFILE_NOT_FOUND" });
+      return;
+    }
+
+    const masked = `•••• •••• ${data.accountNumber.slice(-4)}`;
+
+    const bankAccount = await prisma.astrologerBankAccount.upsert({
+      where: { astrologerProfileId: profile.id },
+      create: {
+        astrologerProfileId: profile.id,
+        accountHolderName: data.accountHolderName,
+        bankName: data.bankName,
+        accountNumberMasked: masked,
+        ifscCode: data.ifscCode.toUpperCase(),
+        accountType: data.accountType,
+        panNumber: data.panNumber?.toUpperCase() || null,
+        upiId: data.upiId || null,
+        isVerified: true, // Auto-verified for active astrologer partner
+      },
+      update: {
+        accountHolderName: data.accountHolderName,
+        bankName: data.bankName,
+        accountNumberMasked: masked,
+        ifscCode: data.ifscCode.toUpperCase(),
+        accountType: data.accountType,
+        panNumber: data.panNumber?.toUpperCase() || null,
+        upiId: data.upiId || null,
+        isVerified: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Bank account updated and verified successfully.",
+      data: {
+        id: bankAccount.id,
+        accountHolderName: bankAccount.accountHolderName,
+        bankName: bankAccount.bankName,
+        accountNumberMasked: bankAccount.accountNumberMasked,
+        ifscCode: bankAccount.ifscCode,
+        accountType: bankAccount.accountType,
+        panNumber: bankAccount.panNumber,
+        isVerified: bankAccount.isVerified,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 10. Atomic Withdrawal Request (Step 8 Enterprise Engine)
 partnerRouter.post("/withdraw", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const schema = z.object({
-      amountPaise: z.coerce.number().min(50000), // Min ₹500
+      amountPaise: z.coerce.number().min(50000, "Minimum withdrawal is ₹500").max(5000000, "Maximum withdrawal is ₹50,000"),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -510,29 +700,103 @@ partnerRouter.post("/withdraw", requireAuth, async (req: AuthenticatedRequest, r
     }
 
     if (!profile.bankAccount) {
-      res.status(400).json({ success: false, error: "BANK_ACCOUNT_MISSING", message: "Please link a bank account before requesting a withdrawal." });
+      res.status(400).json({ success: false, error: "BANK_ACCOUNT_MISSING", message: "Please link a verified bank account before requesting a withdrawal." });
       return;
     }
 
-    const requestNumber = `NA-WDR-${Math.floor(10000 + Math.random() * 90000)}`;
-    const withdrawal = await prisma.withdrawalRequest.create({
-      data: {
-        astrologerProfileId: profile.id,
-        requestNumber,
-        amountPaise: BigInt(amountPaise),
-        status: "PENDING",
-        bankAccountId: profile.bankAccount.id,
-      },
+    const withdrawal = await EarningsService.requestWithdrawal({
+      astrologerProfileId: profile.id,
+      amountPaise: BigInt(amountPaise),
+      bankAccountId: profile.bankAccount.id,
+      userId,
     });
 
     res.status(201).json({
       success: true,
-      message: "Withdrawal request submitted successfully. Finance team will review and process.",
+      message: "Withdrawal request submitted successfully. Funds have been atomically reserved.",
       data: {
+        id: withdrawal.id,
         requestNumber: withdrawal.requestNumber,
-        amountInr: (amountPaise / 100).toFixed(2),
+        amountInr: (Number(withdrawal.amountPaise) / 100).toFixed(2),
+        netAmountInr: (Number(withdrawal.netAmountPaise) / 100).toFixed(2),
         status: withdrawal.status,
       },
+    });
+  } catch (error: any) {
+    const status = error.message?.includes("INSUFFICIENT") ? 400 : 500;
+    res.status(status).json({ success: false, error: error.message || "WITHDRAWAL_FAILED" });
+  }
+});
+
+// 11. List Astrologer Withdrawals
+partnerRouter.get("/withdrawals", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await prisma.astrologerProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      res.status(404).json({ success: false, error: "PROFILE_NOT_FOUND" });
+      return;
+    }
+
+    const withdrawals = await prisma.withdrawalRequest.findMany({
+      where: { astrologerProfileId: profile.id },
+      orderBy: { requestedAt: "desc" },
+    });
+
+    res.json({
+      success: true,
+      data: withdrawals.map((w) => ({
+        id: w.id,
+        requestNumber: w.requestNumber,
+        amountInr: (Number(w.amountPaise) / 100).toFixed(2),
+        tdsAmountInr: (Number(w.tdsAmountPaise) / 100).toFixed(2),
+        netAmountInr: (Number(w.netAmountPaise) / 100).toFixed(2),
+        status: w.status,
+        utrNumber: w.utrNumber,
+        rejectionReason: w.rejectionReason,
+        requestedAt: w.requestedAt,
+        processedAt: w.processedAt,
+      })),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });
+  }
+});
+
+// 12. Cancel Withdrawal Request
+partnerRouter.post("/withdrawals/:id/cancel", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await prisma.astrologerProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      res.status(404).json({ success: false, error: "PROFILE_NOT_FOUND" });
+      return;
+    }
+
+    const withdrawal = await prisma.withdrawalRequest.findUnique({
+      where: { id: req.params.id as string },
+    });
+
+    if (!withdrawal || withdrawal.astrologerProfileId !== profile.id) {
+      res.status(404).json({ success: false, error: "WITHDRAWAL_NOT_FOUND" });
+      return;
+    }
+
+    if (withdrawal.status !== "REQUESTED" && withdrawal.status !== "UNDER_REVIEW") {
+      res.status(400).json({ success: false, error: "CANNOT_CANCEL_IN_CURRENT_STATUS" });
+      return;
+    }
+
+    const cancelled = await EarningsService.rejectWithdrawal({
+      withdrawalId: withdrawal.id,
+      reason: "Cancelled by astrologer",
+      rejectedByUserId: userId,
+    });
+
+    res.json({
+      success: true,
+      message: "Withdrawal request cancelled. Reserved funds returned to available balance.",
+      data: cancelled,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: "INTERNAL_ERROR", message: error?.message });

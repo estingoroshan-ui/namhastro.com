@@ -20,6 +20,7 @@ import { adminRouter } from "./routes/admin.routes.js";
 import { consultationsRouter } from "./routes/consultations.routes.js";
 import { walletRouter } from "./routes/wallet.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
+import { financeRouter } from "./routes/finance.routes.js";
 import { prisma } from "./db.js";
 
 // BigInt JSON serialization support
@@ -65,7 +66,7 @@ export function createApp(deps: HealthDependencies = {}) {
     res.status(200).json({
       status: "ok",
       service: "namhastro-api",
-      step: 7,
+      step: 8,
       domain: env.APP_DOMAIN,
       environment: env.NODE_ENV,
       timestamp: new Date().toISOString(),
@@ -79,6 +80,7 @@ export function createApp(deps: HealthDependencies = {}) {
         webrtc: "agora_configured_and_tested",
         firebase: "web_configured_service_account_pending",
         otpProvider: env.OTP_PROVIDER_API_KEY ? "configured" : "test_mode_active",
+        financeEngine: "enterprise_ledger_and_reconciliation_active",
       },
     });
   });
@@ -157,6 +159,7 @@ export function createApp(deps: HealthDependencies = {}) {
   app.use("/api/v1/consultations", consultationsRouter);
   app.use("/api/v1/wallet", walletRouter);
   app.use("/api/v1/chat", chatRouter);
+  app.use("/api/v1/finance", financeRouter);
 
   // 404 Fallback
   app.use((_req, res) => {

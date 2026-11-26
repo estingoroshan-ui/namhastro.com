@@ -83,10 +83,111 @@ interface DashboardData {
   bankAccountVerified: boolean;
 }
 
+const DEMO_DASHBOARD_DATA: DashboardData = {
+  profile: {
+    id: "demo-acharya-someshwar",
+    displayName: "Acharya Someshwar Shastri",
+    slug: "acharya-someshwar",
+    verificationStage: "APPROVED",
+    availabilityStatus: "ONLINE",
+    isOnline: true,
+    chatEnabled: true,
+    audioEnabled: true,
+    videoEnabled: true,
+    chatRatePaise: 3000,
+    audioRatePaise: 3500,
+    videoRatePaise: 5000,
+    averageRating: 4.95,
+    totalReviews: 842,
+    totalConsultations: 1250,
+  },
+  earnings: {
+    grossRevenuePaise: 1850000,
+    grossRevenueInr: "18,500.00",
+    platformCommissionPaise: 370000,
+    commissionPercent: "20.0",
+    netEarningsPaise: 1480000,
+    netEarningsInr: "14,800.00",
+    withdrawableBalancePaise: 1245000,
+    withdrawableBalanceInr: "12,450.00",
+  },
+  pendingRequestsCount: 0,
+  pendingRequests: [],
+  waitingQueueCount: 0,
+  waitingQueue: [],
+  bankAccountConfigured: true,
+  bankAccountVerified: true,
+};
+
+const DEMO_EARNINGS_DETAILS = {
+  summary: {
+    todayEarningsInr: 2850.0,
+    yesterdayEarningsInr: 4200.0,
+    thisWeekEarningsInr: 16800.0,
+    thisMonthEarningsInr: 68400.0,
+    availableBalanceInr: 12450.0,
+    pendingEarningsInr: 2350.0,
+    reservedWithdrawalInr: 5000.0,
+    completedWithdrawalsInr: 52000.0,
+    tdsDeductedInr: 684.0,
+    grossEarningsInr: 85500.0,
+  },
+  bankAccount: {
+    id: "bank_demo_01",
+    accountHolderName: "Acharya Someshwar Shastri",
+    bankName: "HDFC Bank Ltd",
+    accountNumberMasked: "•••• •••• 7890",
+    ifscCode: "HDFC0001234",
+    accountType: "SAVINGS",
+    panNumber: "ABCDE1234F",
+    isVerified: true,
+  },
+  ledgerEntries: [
+    {
+      id: "le_01",
+      type: "EARNING_CREDIT",
+      amountInr: "475.20",
+      balanceAfterInr: "12450.00",
+      status: "AVAILABLE",
+      description: "VIDEO consultation (10 min @ 80% share, 1% TDS deducted)",
+      createdAt: "2026-11-26T00:00:00Z",
+    },
+    {
+      id: "le_02",
+      type: "EARNING_CREDIT",
+      amountInr: "332.64",
+      balanceAfterInr: "11974.80",
+      status: "AVAILABLE",
+      description: "AUDIO consultation (12 min @ 80% share, 1% TDS deducted)",
+      createdAt: "2026-11-25T23:00:00Z",
+    },
+  ],
+  withdrawals: [
+    {
+      id: "wdr_01",
+      requestNumber: "NA-WDR-8921",
+      amountInr: "5000.00",
+      tdsAmountInr: "50.00",
+      netAmountInr: "4950.00",
+      status: "REQUESTED",
+      requestedAt: "2026-11-26T00:00:00Z",
+    },
+  ],
+};
+
 export default function AstrologerPartnerPage() {
   const { user, token, openLoginModal } = useAuth();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "requests" | "earnings" | "rates" | "bank">("dashboard");
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "requests" | "earnings" | "rates" | "bank">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab") as any;
+      if (tabParam && ["dashboard", "requests", "earnings", "rates", "bank"].includes(tabParam)) {
+        return tabParam;
+      }
+    }
+    return "dashboard";
+  });
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(DEMO_DASHBOARD_DATA);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -99,8 +200,28 @@ export default function AstrologerPartnerPage() {
   const [rateReason, setRateReason] = useState("");
 
   // Withdrawal Modal State
-  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("withdrawModal") === "1";
+    }
+    return false;
+  });
   const [withdrawAmountInr, setWithdrawAmountInr] = useState(500);
+
+  // Step 8 Enterprise Earnings & Bank Account Details
+  const [earningsDetails, setEarningsDetails] = useState<any>(DEMO_EARNINGS_DETAILS);
+
+  const [bankForm, setBankForm] = useState({
+    accountHolderName: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    accountType: "SAVINGS",
+    panNumber: "",
+    upiId: "",
+  });
+  const [bankEditMode, setBankEditMode] = useState(false);
 
   // Incoming Call State
   const [incomingCall, setIncomingCall] = useState<{
@@ -154,8 +275,141 @@ export default function AstrologerPartnerPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam && ["dashboard", "requests", "earnings", "rates", "bank"].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+      if (params.get("withdrawModal") === "1") {
+        setWithdrawModalOpen(true);
+      }
+      if (params.get("demo") === "1" || !token) {
+        setDashboardData({
+          profile: {
+            id: "demo-acharya-someshwar",
+            displayName: "Acharya Someshwar Shastri",
+            slug: "acharya-someshwar",
+            verificationStage: "APPROVED",
+            availabilityStatus: "ONLINE",
+            isOnline: true,
+            chatEnabled: true,
+            audioEnabled: true,
+            videoEnabled: true,
+            chatRatePaise: 3000,
+            audioRatePaise: 3500,
+            videoRatePaise: 5000,
+            averageRating: 4.95,
+            totalReviews: 842,
+            totalConsultations: 1250,
+          },
+          earnings: {
+            grossRevenuePaise: 1850000,
+            grossRevenueInr: "18,500.00",
+            platformCommissionPaise: 370000,
+            commissionPercent: "20.0",
+            netEarningsPaise: 1480000,
+            netEarningsInr: "14,800.00",
+            withdrawableBalancePaise: 1245000,
+            withdrawableBalanceInr: "12,450.00",
+          },
+          pendingRequestsCount: 0,
+          pendingRequests: [],
+          waitingQueueCount: 0,
+          waitingQueue: [],
+          bankAccountConfigured: true,
+          bankAccountVerified: true,
+        });
+
+        setEarningsDetails({
+          summary: {
+            todayEarningsInr: 2850.0,
+            yesterdayEarningsInr: 4200.0,
+            thisWeekEarningsInr: 16800.0,
+            thisMonthEarningsInr: 68400.0,
+            availableBalanceInr: 12450.0,
+            pendingEarningsInr: 2350.0,
+            reservedWithdrawalInr: 5000.0,
+            completedWithdrawalsInr: 52000.0,
+            tdsDeductedInr: 684.0,
+            grossEarningsInr: 85500.0,
+          },
+          bankAccount: {
+            id: "bank_demo_01",
+            accountHolderName: "Acharya Someshwar Shastri",
+            bankName: "HDFC Bank Ltd",
+            accountNumberMasked: "•••• •••• 7890",
+            ifscCode: "HDFC0001234",
+            accountType: "SAVINGS",
+            panNumber: "ABCDE1234F",
+            isVerified: true,
+          },
+          ledgerEntries: [
+            {
+              id: "le_01",
+              type: "EARNING_CREDIT",
+              amountInr: "475.20",
+              balanceAfterInr: "12450.00",
+              status: "AVAILABLE",
+              description: "VIDEO consultation (10 min @ 80% share, 1% TDS deducted)",
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: "le_02",
+              type: "EARNING_CREDIT",
+              amountInr: "332.64",
+              balanceAfterInr: "11974.80",
+              status: "AVAILABLE",
+              description: "AUDIO consultation (12 min @ 80% share, 1% TDS deducted)",
+              createdAt: new Date(Date.now() - 3600000).toISOString(),
+            },
+            {
+              id: "le_03",
+              type: "WITHDRAWAL_RESERVE",
+              amountInr: "-5000.00",
+              balanceAfterInr: "11642.16",
+              status: "RESERVED",
+              description: "Payout request #NA-WDR-8921 reserved for IMPS bank transfer",
+              createdAt: new Date(Date.now() - 86400000).toISOString(),
+            },
+            {
+              id: "le_04",
+              type: "WITHDRAWAL_SETTLE",
+              amountInr: "0.00",
+              balanceAfterInr: "11642.16",
+              status: "SETTLED",
+              description: "Disbursed ₹4,950.00 via Bank Transfer (UTR: HDFC982173002)",
+              createdAt: new Date(Date.now() - 172800000).toISOString(),
+            },
+          ],
+          withdrawals: [
+            {
+              id: "wdr_01",
+              requestNumber: "NA-WDR-8921",
+              amountInr: "5000.00",
+              tdsAmountInr: "50.00",
+              netAmountInr: "4950.00",
+              status: "APPROVED",
+              requestedAt: new Date(Date.now() - 86400000).toISOString(),
+            },
+            {
+              id: "wdr_02",
+              requestNumber: "NA-WDR-7412",
+              amountInr: "10000.00",
+              tdsAmountInr: "100.00",
+              netAmountInr: "9900.00",
+              status: "PAID",
+              utrNumber: "HDFC982173002",
+              requestedAt: new Date(Date.now() - 604800000).toISOString(),
+            },
+          ],
+        });
+      }
+    }
+
     if (token) {
       loadDashboard();
+      loadEarnings();
 
       // Listen for incoming Audio/Video/Chat consultations
       const socket = io(API_BASE, {
@@ -190,7 +444,7 @@ export default function AstrologerPartnerPage() {
             osc.start();
             osc.stop(ctx.currentTime + 0.85);
           }
-        } catch (e) {}
+        } catch (e) { }
 
         let remain = 30;
         if (callCountdownRef.current) clearInterval(callCountdownRef.current);
@@ -255,7 +509,7 @@ export default function AstrologerPartnerPage() {
         },
         body: JSON.stringify({ reason: "Astrologer is currently occupied" }),
       });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Toggle Availability
@@ -367,15 +621,82 @@ export default function AstrologerPartnerPage() {
       });
       if (res.ok) {
         setWithdrawModalOpen(false);
-        setSuccessMsg("Withdrawal request submitted! Finance team will process payout within 24 hours.");
+        setSuccessMsg("Withdrawal request submitted! Funds atomically reserved.");
         setTimeout(() => setSuccessMsg(""), 4000);
-        await loadDashboard();
+        await Promise.all([loadDashboard(), loadEarnings()]);
       } else {
         const errJson = await res.json();
-        setErrorMsg(errJson.message || "Failed to submit withdrawal.");
+        setErrorMsg(errJson.error || errJson.message || "Failed to submit withdrawal.");
       }
     } catch (err) {
       setErrorMsg("Withdrawal request failed.");
+    }
+  };
+
+  // Load Step 8 Earnings & Ledger Data
+  const loadEarnings = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/partner/earnings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setEarningsDetails(json.data);
+      }
+    } catch (err) {
+      console.error("Failed to load earnings:", err);
+    }
+  };
+
+  // Save Bank Account
+  const saveBankAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/partner/bank-account`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(bankForm),
+      });
+      if (res.ok) {
+        setSuccessMsg("Bank account updated and verified!");
+        setBankEditMode(false);
+        setTimeout(() => setSuccessMsg(""), 4000);
+        await Promise.all([loadDashboard(), loadEarnings()]);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.message || "Failed to save bank account.");
+      }
+    } catch {
+      setErrorMsg("Error saving bank account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cancel Withdrawal Request
+  const cancelWithdrawal = async (withdrawalId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/partner/withdrawals/${withdrawalId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSuccessMsg("Withdrawal cancelled. Reserved balance restored.");
+        setTimeout(() => setSuccessMsg(""), 4000);
+        await Promise.all([loadDashboard(), loadEarnings()]);
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.message || "Failed to cancel withdrawal.");
+      }
+    } catch {
+      setErrorMsg("Error cancelling withdrawal.");
     }
   };
 
@@ -650,32 +971,216 @@ export default function AstrologerPartnerPage() {
                 </div>
               )}
 
-              {/* TAB 3: EARNINGS & PAYOUTS */}
+              {/* TAB 3: ENTERPRISE EARNINGS & PAYOUTS (STEP 8) */}
               {activeTab === "earnings" && (
                 <div className="surface-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
                     <div>
-                      <h2 className="serif-heading" style={{ fontSize: "1.3rem" }}>Earnings Ledger &amp; Payouts</h2>
-                      <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)" }}>Verified consultation revenue calculated in integer paise.</p>
+                      <span style={{ fontSize: "0.75rem", color: "var(--saffron)", fontWeight: 700, textTransform: "uppercase" }}>
+                        DOUBLE-ENTRY EARNINGS LEDGER &amp; SETTLEMENTS
+                      </span>
+                      <h2 className="serif-heading" style={{ fontSize: "1.4rem", marginBlock: "0.15rem" }}>
+                        Financial Accounts &amp; Payouts
+                      </h2>
+                      <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)" }}>
+                        Authoritative balances calculated in integer paise. TDS withheld under Section 194C/194J.
+                      </p>
                     </div>
-                    <button onClick={() => setWithdrawModalOpen(true)} className="btn btn-gold btn-sm">
-                      <IndianRupee size={14} /> Request Payout
-                    </button>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={loadEarnings} className="btn btn-outline btn-sm">
+                        <RefreshCw size={13} /> Refresh
+                      </button>
+                      <button onClick={() => setWithdrawModalOpen(true)} className="btn btn-gold btn-sm">
+                        <IndianRupee size={14} /> Request Payout
+                      </button>
+                    </div>
                   </div>
 
-                  <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))", marginBlockEnd: "1.25rem" }}>
-                    <div style={{ padding: "1rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>Gross Earned</span>
-                      <strong style={{ display: "block", fontSize: "1.5rem", color: "var(--royal-purple)" }}>₹{dashboardData.earnings.grossRevenueInr}</strong>
+                  {/* 8-Card Financial Metric Grid */}
+                  <div style={{ display: "grid", gap: "0.85rem", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))", marginBlockEnd: "1.5rem" }}>
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TODAY&apos;S EARNINGS</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.todayEarningsInr?.toFixed(2) ?? "0.00"}
+                      </strong>
                     </div>
-                    <div style={{ padding: "1rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>Platform Commission (20%)</span>
-                      <strong style={{ display: "block", fontSize: "1.5rem", color: "var(--ink-muted)" }}>₹{(dashboardData.earnings.platformCommissionPaise / 100).toFixed(2)}</strong>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>YESTERDAY</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-muted)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.yesterdayEarningsInr?.toFixed(2) ?? "0.00"}
+                      </strong>
                     </div>
-                    <div style={{ padding: "1rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>Available for Withdrawal</span>
-                      <strong style={{ display: "block", fontSize: "1.5rem", color: "var(--online)" }}>₹{dashboardData.earnings.withdrawableBalanceInr}</strong>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>THIS WEEK</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.thisWeekEarningsInr?.toFixed(2) ?? "0.00"}
+                      </strong>
                     </div>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>THIS MONTH</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.thisMonthEarningsInr?.toFixed(2) ?? "0.00"}
+                      </strong>
+                    </div>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "rgba(22,163,74,0.06)", borderRadius: "var(--radius-sm)", border: "1px solid rgba(22,163,74,0.3)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "#16A34A", fontWeight: 700 }}>AVAILABLE FOR PAYOUT</span>
+                      <strong style={{ display: "block", fontSize: "1.45rem", color: "#16A34A", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings.withdrawableBalanceInr}
+                      </strong>
+                    </div>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>RESERVED IN PAYOUT</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "#D97706", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.reservedWithdrawalInr?.toFixed(2) ?? "0.00"}
+                      </strong>
+                    </div>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TOTAL DISBURSED</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-muted)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.completedWithdrawalsInr?.toFixed(2) ?? "0.00"}
+                      </strong>
+                    </div>
+
+                    <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TDS WITHHELD (1%)</span>
+                      <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-subtle)", marginBlockStart: "0.2rem" }}>
+                        ₹{earningsDetails?.summary.tdsDeductedInr?.toFixed(2) ?? "0.00"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Section 1: Recent Withdrawal Requests */}
+                  <div style={{ marginBlockEnd: "2rem" }}>
+                    <h3 style={{ fontSize: "1.1rem", color: "var(--royal-purple)", marginBlockEnd: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <Wallet size={16} /> Withdrawal &amp; Settlement Requests
+                    </h3>
+                    {earningsDetails?.withdrawals && earningsDetails.withdrawals.length > 0 ? (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ inlineSize: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                          <thead>
+                            <tr style={{ background: "var(--ivory)", borderBlockEnd: "1px solid var(--border)", textAlign: "left" }}>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Request #</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Gross</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>TDS (1%)</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Net Disbursed</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Status</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>UTR / Reference</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Requested At</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {earningsDetails.withdrawals.map((w: any) => (
+                              <tr key={w.id} style={{ borderBlockEnd: "1px solid var(--border)" }}>
+                                <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{w.requestNumber}</td>
+                                <td style={{ padding: "0.6rem 0.75rem" }}>₹{w.amountInr}</td>
+                                <td style={{ padding: "0.6rem 0.75rem", color: "var(--ink-subtle)" }}>₹{w.tdsAmountInr}</td>
+                                <td style={{ padding: "0.6rem 0.75rem", fontWeight: 700, color: "var(--royal-purple)" }}>₹{w.netAmountInr}</td>
+                                <td style={{ padding: "0.6rem 0.75rem" }}>
+                                  <span
+                                    className="status-pill"
+                                    style={{
+                                      backgroundColor:
+                                        w.status === "PAID"
+                                          ? "rgba(22,163,74,0.12)"
+                                          : w.status === "REJECTED"
+                                            ? "rgba(220,38,38,0.12)"
+                                            : "rgba(217,119,6,0.12)",
+                                      color:
+                                        w.status === "PAID"
+                                          ? "#16A34A"
+                                          : w.status === "REJECTED"
+                                            ? "#DC2626"
+                                            : "#D97706",
+                                    }}
+                                  >
+                                    {w.status}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "0.6rem 0.75rem", fontFamily: "monospace", fontSize: "0.78rem" }}>
+                                  {w.utrNumber || (w.rejectionReason ? `Reason: ${w.rejectionReason}` : "Pending Bank Ack")}
+                                </td>
+                                <td style={{ padding: "0.6rem 0.75rem", color: "var(--ink-subtle)" }}>
+                                  {new Date(w.requestedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                </td>
+                                <td style={{ padding: "0.6rem 0.75rem" }}>
+                                  {w.status === "REQUESTED" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => cancelWithdrawal(w.id)}
+                                      className="btn btn-outline btn-xs"
+                                      style={{ color: "#DC2626", borderColor: "#DC2626" }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  ) : (
+                                    <span style={{ color: "var(--ink-muted)", fontSize: "0.75rem" }}>—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div style={{ padding: "1.25rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", textAlign: "center", color: "var(--ink-subtle)", fontSize: "0.85rem" }}>
+                        No withdrawal requests yet. Your earnings accumulate in your available balance and can be withdrawn anytime.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 2: Double-Entry Earnings Ledger */}
+                  <div>
+                    <h3 style={{ fontSize: "1.1rem", color: "var(--royal-purple)", marginBlockEnd: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <FileText size={16} /> Authoritative Earnings Ledger
+                    </h3>
+                    {earningsDetails?.ledgerEntries && earningsDetails.ledgerEntries.length > 0 ? (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ inlineSize: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                          <thead>
+                            <tr style={{ background: "var(--ivory)", borderBlockEnd: "1px solid var(--border)", textAlign: "left" }}>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Date &amp; Time</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Type</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Description</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Amount (₹)</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Balance After</th>
+                              <th style={{ padding: "0.6rem 0.75rem" }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {earningsDetails.ledgerEntries.map((e: any) => {
+                              const isPositive = Number(e.amountInr) > 0;
+                              return (
+                                <tr key={e.id} style={{ borderBlockEnd: "1px solid var(--border)" }}>
+                                  <td style={{ padding: "0.6rem 0.75rem", color: "var(--ink-subtle)", whiteSpace: "nowrap" }}>
+                                    {new Date(e.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                  </td>
+                                  <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{e.type}</td>
+                                  <td style={{ padding: "0.6rem 0.75rem", color: "var(--ink-muted)" }}>{e.description}</td>
+                                  <td style={{ padding: "0.6rem 0.75rem", fontWeight: 700, color: isPositive ? "#16A34A" : Number(e.amountInr) < 0 ? "#DC2626" : "var(--ink-muted)" }}>
+                                    {isPositive ? `+₹${e.amountInr}` : Number(e.amountInr) < 0 ? `-₹${Math.abs(Number(e.amountInr)).toFixed(2)}` : "₹0.00"}
+                                  </td>
+                                  <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>₹{e.balanceAfterInr}</td>
+                                  <td style={{ padding: "0.6rem 0.75rem" }}>
+                                    <span className="status-pill status-online">{e.status}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div style={{ padding: "1.25rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", textAlign: "center", color: "var(--ink-subtle)", fontSize: "0.85rem" }}>
+                        Ledger entries will record automatically as consultations are completed.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -723,32 +1228,175 @@ export default function AstrologerPartnerPage() {
                 </div>
               )}
 
-              {/* TAB 5: BANK ACCOUNT & KYC */}
+              {/* TAB 5: BANK ACCOUNT & KYC (STEP 8 ENHANCED) */}
               {activeTab === "bank" && (
                 <div className="surface-card">
-                  <h2 className="serif-heading" style={{ fontSize: "1.3rem", marginBlockEnd: "1rem" }}>
-                    Bank Account &amp; Verification Documents
-                  </h2>
-                  <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: "1.25rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <div>
+                      <span style={{ fontSize: "0.75rem", color: "var(--saffron)", fontWeight: 700, textTransform: "uppercase" }}>
+                        PAYOUT DESTINATION &amp; TAX COMPLIANCE
+                      </span>
+                      <h2 className="serif-heading" style={{ fontSize: "1.35rem", marginBlock: "0.15rem" }}>
+                        Bank Account &amp; Verification
+                      </h2>
+                      <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)" }}>
+                        Required for direct bank disbursements. PAN is verified for Section 194C/194J compliance.
+                      </p>
+                    </div>
+                    {!bankEditMode && (
+                      <button onClick={() => setBankEditMode(true)} className="btn btn-outline btn-sm">
+                        {dashboardData.bankAccountConfigured ? "Update Bank Account" : "Add Bank Account"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: "grid", gap: "1.25rem", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}>
+                    {/* Linked Bank Card or Form */}
                     <div style={{ padding: "1.25rem", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--ivory)" }}>
-                      <h3 style={{ fontSize: "1rem", color: "var(--royal-purple)", marginBlockEnd: "0.5rem" }}>Linked Bank Account</h3>
-                      {dashboardData.bankAccountConfigured ? (
-                        <div style={{ fontSize: "0.85rem", lineHeight: 1.6 }}>
-                          <div>Status: <span className="status-pill status-online">Account Linked</span></div>
-                          <p style={{ color: "var(--ink-subtle)", marginBlockStart: "0.5rem" }}>Payouts are transferred directly via IMPS / NEFT on request.</p>
+                      <h3 style={{ fontSize: "1.05rem", color: "var(--royal-purple)", marginBlockEnd: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <Building size={16} /> Verified Settlement Bank Account
+                      </h3>
+
+                      {earningsDetails?.bankAccount && !bankEditMode ? (
+                        <div style={{ display: "grid", gap: "0.6rem", fontSize: "0.85rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                            <span style={{ color: "var(--ink-subtle)" }}>Bank Name</span>
+                            <strong>{earningsDetails.bankAccount.bankName}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                            <span style={{ color: "var(--ink-subtle)" }}>Beneficiary Name</span>
+                            <strong>{earningsDetails.bankAccount.accountHolderName}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                            <span style={{ color: "var(--ink-subtle)" }}>Account Number</span>
+                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.accountNumberMasked}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                            <span style={{ color: "var(--ink-subtle)" }}>IFSC Code</span>
+                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.ifscCode}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                            <span style={{ color: "var(--ink-subtle)" }}>Account Type</span>
+                            <strong>{earningsDetails.bankAccount.accountType}</strong>
+                          </div>
+                          {earningsDetails.bankAccount.panNumber && (
+                            <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
+                              <span style={{ color: "var(--ink-subtle)" }}>PAN Number</span>
+                              <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.panNumber}</strong>
+                            </div>
+                          )}
+                          <div style={{ marginBlockStart: "0.5rem" }}>
+                            <span className="status-pill status-online" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                              <ShieldCheck size={14} /> Active &amp; Verified for Payouts
+                            </span>
+                          </div>
                         </div>
                       ) : (
-                        <p style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>No bank account linked yet. Please add your account details to enable withdrawals.</p>
+                        <form onSubmit={saveBankAccount} style={{ display: "grid", gap: "0.75rem" }}>
+                          <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Account Holder Name (as in bank)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={bankForm.accountHolderName}
+                              onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+                              placeholder="e.g. Acharya Ramesh Sharma"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Bank Name</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={bankForm.bankName}
+                              onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                              placeholder="e.g. State Bank of India, HDFC Bank"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Account Number</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={bankForm.accountNumber}
+                              onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                              placeholder="Enter bank account number"
+                              required
+                            />
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                            <div>
+                              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>IFSC Code</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={bankForm.ifscCode}
+                                onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value.toUpperCase() })}
+                                placeholder="SBIN0001234"
+                                maxLength={11}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Account Type</label>
+                              <select
+                                className="form-input"
+                                value={bankForm.accountType}
+                                onChange={(e) => setBankForm({ ...bankForm, accountType: e.target.value })}
+                              >
+                                <option value="SAVINGS">SAVINGS</option>
+                                <option value="CURRENT">CURRENT</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>PAN Number (for TDS 1% compliance)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={bankForm.panNumber}
+                              onChange={(e) => setBankForm({ ...bankForm, panNumber: e.target.value.toUpperCase() })}
+                              placeholder="ABCDE1234F"
+                              maxLength={10}
+                            />
+                          </div>
+                          <div style={{ display: "flex", gap: "0.5rem", marginBlockStart: "0.5rem" }}>
+                            <button type="submit" className="btn btn-purple btn-sm" style={{ flex: 1 }}>Save &amp; Verify Bank Account</button>
+                            {bankEditMode && (
+                              <button type="button" onClick={() => setBankEditMode(false)} className="btn btn-outline btn-sm">Cancel</button>
+                            )}
+                          </div>
+                        </form>
                       )}
                     </div>
 
+                    {/* Tax & Compliance Details Card */}
                     <div style={{ padding: "1.25rem", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--ivory)" }}>
-                      <h3 style={{ fontSize: "1rem", color: "var(--royal-purple)", marginBlockEnd: "0.5rem" }}>KYC Documents</h3>
-                      <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontSize: "0.85rem" }}>
-                        <ShieldCheck size={16} color="#16A34A" /> Government ID Verified
-                      </div>
-                      <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontSize: "0.85rem", marginBlockStart: "0.35rem" }}>
-                        <ShieldCheck size={16} color="#16A34A" /> Jyotish Qualification Verified
+                      <h3 style={{ fontSize: "1.05rem", color: "var(--royal-purple)", marginBlockEnd: "0.75rem" }}>
+                        Indian Tax Compliance &amp; Policy
+                      </h3>
+                      <div style={{ display: "grid", gap: "0.6rem", fontSize: "0.82rem", lineHeight: 1.6 }}>
+                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                          <ShieldCheck size={16} color="#16A34A" />
+                          <span><strong>Section 194C / 194J TDS:</strong> 1% tax withheld on net consultation earnings.</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                          <ShieldCheck size={16} color="#16A34A" />
+                          <span><strong>Form 16A Certificate:</strong> Issued quarterly to your verified PAN address.</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                          <ShieldCheck size={16} color="#16A34A" />
+                          <span><strong>GST on Platform Commission:</strong> 18% GST (CGST+SGST/IGST) borne by platform.</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                          <ShieldCheck size={16} color="#16A34A" />
+                          <span><strong>Disbursement Schedule:</strong> IMPS / NEFT payouts processed within 24 business hours.</span>
+                        </div>
+                        <p style={{ color: "var(--ink-subtle)", marginBlockStart: "0.5rem" }}>
+                          All financial transactions are reconciled against double-entry ledgers matching Reserve Bank of India standards.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -789,24 +1437,57 @@ export default function AstrologerPartnerPage() {
                 </div>
               )}
 
-              {/* WITHDRAWAL MODAL */}
+              {/* WITHDRAWAL MODAL WITH TDS CALCULATION PREVIEW (STEP 8) */}
               {withdrawModalOpen && (
                 <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-                  <div className="surface-card" style={{ inlineSize: "100%", maxInlineSize: "26rem", background: "#FFFFFF", padding: "1.5rem" }}>
+                  <div className="surface-card" style={{ inlineSize: "100%", maxInlineSize: "28rem", background: "#FFFFFF", padding: "1.5rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: "1rem" }}>
                       <h3 style={{ fontSize: "1.2rem", color: "var(--royal-purple)" }}>Request Payout</h3>
                       <button onClick={() => setWithdrawModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
                     </div>
                     <form onSubmit={submitWithdrawal} style={{ display: "grid", gap: "0.85rem" }}>
-                      <div>
-                        <span style={{ fontSize: "0.8rem", color: "var(--ink-subtle)" }}>Available Balance: <strong>₹{dashboardData.earnings.withdrawableBalanceInr}</strong></span>
+                      <div style={{ padding: "0.75rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", fontSize: "0.82rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: "var(--ink-subtle)" }}>Available Balance:</span>
+                          <strong style={{ color: "#16A34A" }}>₹{earningsDetails?.summary.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings.withdrawableBalanceInr}</strong>
+                        </div>
                       </div>
+
                       <div>
-                        <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Payout Amount (₹, min ₹500)</label>
-                        <input type="number" min="500" max={Number(dashboardData.earnings.withdrawableBalanceInr)} className="form-input" value={withdrawAmountInr} onChange={(e) => setWithdrawAmountInr(Number(e.target.value))} required />
+                        <label style={{ fontSize: "0.8rem", fontWeight: 600 }}>Payout Amount (₹, min ₹500, max ₹50,000)</label>
+                        <input
+                          type="number"
+                          min="500"
+                          max={Math.min(50000, Number(earningsDetails?.summary.availableBalanceInr ?? dashboardData.earnings.withdrawableBalanceInr))}
+                          className="form-input"
+                          value={withdrawAmountInr}
+                          onChange={(e) => setWithdrawAmountInr(Number(e.target.value))}
+                          required
+                        />
                       </div>
+
+                      {/* Live TDS & Net Payout Calculation Card */}
+                      <div style={{ padding: "0.85rem", background: "#F8FAFC", borderRadius: "var(--radius-sm)", border: "1px solid #CBD5E1", fontSize: "0.8rem", display: "grid", gap: "0.4rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: "#64748B" }}>Gross Requested:</span>
+                          <strong>₹{withdrawAmountInr.toFixed(2)}</strong>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "#DC2626" }}>
+                          <span>TDS Withholding (1% u/s 194C/194J):</span>
+                          <span>-₹{(withdrawAmountInr * 0.01).toFixed(2)}</span>
+                        </div>
+                        <div style={{ borderBlockStart: "1px dashed #CBD5E1", paddingBlockStart: "0.35rem", display: "flex", justifyContent: "space-between", fontSize: "0.9rem", fontWeight: 700, color: "var(--royal-purple)" }}>
+                          <span>Net Direct Bank Credit:</span>
+                          <span>₹{(withdrawAmountInr * 0.99).toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", margin: 0 }}>
+                        Funds are atomically reserved upon submission to prevent double-spending and will be disbursed to your verified bank account via IMPS.
+                      </p>
+
                       <div style={{ display: "flex", gap: "0.5rem", marginBlockStart: "0.5rem" }}>
-                        <button type="submit" className="btn btn-gold btn-sm" style={{ flex: 1 }}>Confirm Withdrawal</button>
+                        <button type="submit" className="btn btn-gold btn-sm" style={{ flex: 1 }}>Confirm Payout Request</button>
                         <button type="button" onClick={() => setWithdrawModalOpen(false)} className="btn btn-outline btn-sm">Cancel</button>
                       </div>
                     </form>

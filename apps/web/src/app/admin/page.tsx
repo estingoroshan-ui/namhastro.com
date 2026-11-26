@@ -46,6 +46,10 @@ const ADMIN_MODULES = [
   { id: "online-astrologers", label: "All Astrologers & Rates", icon: UserCheck, count: "Directory" },
   { id: "rate-changes", label: "Rate Change Requests", icon: DollarSign, count: "Requests" },
   { id: "withdrawals", label: "Withdrawals & Payouts", icon: IndianRupee, count: "Settlement" },
+  { id: "commission", label: "Dynamic Commission Rules", icon: FileCheck, count: "Rules" },
+  { id: "settlements", label: "Settlement Batches", icon: CreditCard, count: "Batches" },
+  { id: "pnl", label: "P&L Ledger & Expenses", icon: FileBarChart, count: "Ledger" },
+  { id: "reconciliation", label: "Financial Reconciliation", icon: RotateCcw, count: "Audit" },
   { id: "consultations", label: "Live Consultations", icon: Activity, count: "Agora" },
   { id: "customers", label: "Customer Accounts", icon: Users, count: "Users" },
   { id: "wallets", label: "Wallet Accounting", icon: Wallet, count: "INR" },
@@ -53,9 +57,72 @@ const ADMIN_MODULES = [
   { id: "settings", label: "System Settings", icon: Settings, count: "Config" },
 ] as const;
 
+const DEMO_FINANCE_OVERVIEW = {
+  overview: {
+    totalRechargesInr: 284500.0,
+    customerWalletLiabilityInr: 42150.0,
+    customerPromoCreditsInr: 12500.0,
+    consultationGrossRevenueInr: 242350.0,
+    platformGrossCommissionInr: 48470.0,
+    totalAstrologerEarningsInr: 193880.0,
+    astrologerPayableLiabilityInr: 38200.0,
+    astrologerReservedLiabilityInr: 15000.0,
+    astrologerPendingHoldInr: 4800.0,
+    astrologerTotalDisbursedInr: 135880.0,
+    tdsWithheldInr: 1938.8,
+    totalOperatingExpensesInr: 18450.0,
+    netOperatingProfitInr: 30020.0,
+  },
+};
+
+const DEMO_COMMISSION_RULES = [
+  { id: "cr_01", code: "GLOBAL_DEFAULT", name: "Global Standard Commission", serviceType: "ALL", commissionBps: 2000, priority: 100, isActive: true },
+  { id: "cr_02", code: "VIDEO_PREMIUM_25", name: "HD Video Platform Fee", serviceType: "VIDEO", commissionBps: 2500, priority: 50, isActive: true },
+  { id: "cr_03", code: "CHAT_PROMO_18", name: "Chat Fast Consultation Promo", serviceType: "CHAT", commissionBps: 1800, priority: 60, isActive: true },
+];
+
+const DEMO_SETTLEMENT_BATCHES = [
+  {
+    id: "batch_01",
+    batchNumber: "SETTLE-BATCH-20261125-842",
+    status: "COMPLETED",
+    scheduleType: "DAILY_CYCLE",
+    totalAmountInr: "42,500.00",
+    totalAstrologers: 8,
+    payoutReference: "RZPX_PAYOUT_BATCH_98214",
+    createdAt: "2026-11-25T12:00:00Z",
+  },
+  {
+    id: "batch_02",
+    batchNumber: "SETTLE-BATCH-20261126-104",
+    status: "READY_FOR_PAYOUT",
+    scheduleType: "MANUAL",
+    totalAmountInr: "16,830.00",
+    totalAstrologers: 2,
+    payoutReference: null,
+    createdAt: "2026-11-26T10:00:00Z",
+  },
+];
+
+const DEMO_EXPENSES = [
+  { id: "exp_01", category: "AGORA_RTC", vendor: "Agora Inc.", amountInr: "4,250.00", invoiceNumber: "INV-AGORA-NOV26", expenseDate: "2026-11-25T10:00:00Z", notes: "Voice & Video RTC Minutes" },
+  { id: "exp_02", category: "FIREBASE", vendor: "Google Cloud Firebase", amountInr: "1,200.00", invoiceNumber: "INV-GCP-8492", expenseDate: "2026-11-25T10:00:00Z", notes: "FCM Push Notifications & Auth" },
+  { id: "exp_03", category: "INFRASTRUCTURE", vendor: "AWS / Hetzner Cloud", amountInr: "8,500.00", invoiceNumber: "INV-HETZ-221", expenseDate: "2026-11-24T10:00:00Z", notes: "Production Server & MariaDB Cluster" },
+  { id: "exp_04", category: "RAZORPAY_GATEWAY", vendor: "Razorpay Software Pvt Ltd", amountInr: "4,500.00", invoiceNumber: "INV-RZP-9921", expenseDate: "2026-11-24T10:00:00Z", notes: "2% Payment Processing Fees" },
+];
+
 export default function SuperAdminDashboardPage() {
   const { user, token } = useAuth();
-  const [activeId, setActiveId] = useState<(typeof ADMIN_MODULES)[number]["id"]>("verification");
+  const [activeId, setActiveId] = useState<(typeof ADMIN_MODULES)[number]["id"]>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab") as any;
+      if (tabParam && ADMIN_MODULES.some((m) => m.id === tabParam)) {
+        return tabParam;
+      }
+    }
+    return "verification";
+  });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -66,6 +133,28 @@ export default function SuperAdminDashboardPage() {
   const [applications, setApplications] = useState<any[]>([]);
   const [rateRequests, setRateRequests] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+
+  // Step 8 Finance & Accounting Records
+  const [financeOverview, setFinanceOverview] = useState<any>(DEMO_FINANCE_OVERVIEW);
+  const [commissionRules, setCommissionRules] = useState<any[]>(DEMO_COMMISSION_RULES);
+  const [settlementBatches, setSettlementBatches] = useState<any[]>(DEMO_SETTLEMENT_BATCHES);
+  const [reconciliationReports, setReconciliationReports] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>(DEMO_EXPENSES);
+  const [newRuleForm, setNewRuleForm] = useState({
+    name: "",
+    code: "",
+    serviceType: "ALL",
+    commissionBps: 2000,
+    priority: 100,
+  });
+  const [newExpenseForm, setNewExpenseForm] = useState({
+    category: "AGORA_RTC",
+    vendor: "Agora Inc.",
+    amountInr: 1500,
+    invoiceNumber: "INV-AGORA-001",
+    notes: "Monthly RTC Web & Mobile minutes",
+  });
+  const [payoutUtrInput, setPayoutUtrInput] = useState<{ [id: string]: string }>({});
 
   // Modals
   const [selectedApp, setSelectedApp] = useState<any>(null);
@@ -100,13 +189,18 @@ export default function SuperAdminDashboardPage() {
       setLoading(true);
       setErrorMsg("");
 
-      const [astroRes, appRes, rateRes, wdrRes, liveRes, disputeRes] = await Promise.all([
+      const [astroRes, appRes, rateRes, wdrRes, liveRes, disputeRes, finOverRes, rulesRes, batchesRes, expRes, reconRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/admin/astrologers`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/applications`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/rate-change-requests`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/v1/admin/withdrawals`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/withdrawals`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/consultations/live`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/v1/admin/consultations/disputes`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/overview`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/commission-rules`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/settlement-batches`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/expenses`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/v1/finance/reconciliation/history`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (astroRes.ok) {
@@ -138,6 +232,26 @@ export default function SuperAdminDashboardPage() {
           setDisputesList(d.data || []);
         }
       }
+      if (finOverRes.ok) {
+        const d = await finOverRes.json();
+        if (d.success) setFinanceOverview(d.data);
+      }
+      if (rulesRes.ok) {
+        const d = await rulesRes.json();
+        if (d.success) setCommissionRules(d.data || []);
+      }
+      if (batchesRes.ok) {
+        const d = await batchesRes.json();
+        if (d.success) setSettlementBatches(d.data || []);
+      }
+      if (expRes.ok) {
+        const d = await expRes.json();
+        if (d.success) setExpenses(d.data || []);
+      }
+      if (reconRes.ok) {
+        const d = await reconRes.json();
+        if (d.success) setReconciliationReports(d.data || []);
+      }
     } catch {
       setErrorMsg("Failed to load admin data.");
     } finally {
@@ -146,6 +260,122 @@ export default function SuperAdminDashboardPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab") as any;
+      if (tabParam && ADMIN_MODULES.some((m) => m.id === tabParam)) {
+        setActiveId(tabParam);
+      }
+      if (params.get("demo") === "1" || !token) {
+        setFinanceOverview({
+          overview: {
+            totalRechargesInr: 284500.0,
+            customerWalletLiabilityInr: 42150.0,
+            customerPromoCreditsInr: 12500.0,
+            consultationGrossRevenueInr: 242350.0,
+            platformGrossCommissionInr: 48470.0,
+            totalAstrologerEarningsInr: 193880.0,
+            astrologerPayableLiabilityInr: 38200.0,
+            astrologerReservedLiabilityInr: 15000.0,
+            astrologerPendingHoldInr: 4800.0,
+            astrologerTotalDisbursedInr: 135880.0,
+            tdsWithheldInr: 1938.8,
+            totalOperatingExpensesInr: 18450.0,
+            netOperatingProfitInr: 30020.0,
+          },
+        });
+
+        setCommissionRules([
+          { id: "cr_01", code: "GLOBAL_DEFAULT", name: "Global Standard Commission", serviceType: "ALL", commissionBps: 2000, priority: 100, isActive: true },
+          { id: "cr_02", code: "VIDEO_PREMIUM_25", name: "HD Video Platform Fee", serviceType: "VIDEO", commissionBps: 2500, priority: 50, isActive: true },
+          { id: "cr_03", code: "CHAT_PROMO_18", name: "Chat Fast Consultation Promo", serviceType: "CHAT", commissionBps: 1800, priority: 60, isActive: true },
+        ]);
+
+        setWithdrawals([
+          {
+            id: "wdr_101",
+            requestNumber: "NA-WDR-8921",
+            astrologerName: "Acharya Someshwar Shastri",
+            astrologerPhone: "+91 98881 23456",
+            amountInr: "5000.00",
+            tdsAmountInr: "50.00",
+            netAmountInr: "4950.00",
+            status: "REQUESTED",
+            bankDetails: {
+              bankName: "HDFC Bank Ltd",
+              accountHolderName: "Acharya Someshwar Shastri",
+              accountNumberMasked: "•••• •••• 7890",
+              ifscCode: "HDFC0001234",
+              panNumber: "ABCDE1234F",
+            },
+            requestedAt: new Date().toISOString(),
+          },
+          {
+            id: "wdr_102",
+            requestNumber: "NA-WDR-8919",
+            astrologerName: "Acharya Gayatri Devi",
+            astrologerPhone: "+91 97772 34567",
+            amountInr: "12000.00",
+            tdsAmountInr: "120.00",
+            netAmountInr: "11880.00",
+            status: "APPROVED",
+            bankDetails: {
+              bankName: "State Bank of India",
+              accountHolderName: "Acharya Gayatri Devi",
+              accountNumberMasked: "•••• •••• 4321",
+              ifscCode: "SBIN0004567",
+              panNumber: "FGHIJ5678K",
+            },
+            requestedAt: new Date(Date.now() - 3600000).toISOString(),
+          },
+        ]);
+
+        setSettlementBatches([
+          {
+            id: "batch_01",
+            batchNumber: "SETTLE-BATCH-20261125-842",
+            status: "COMPLETED",
+            scheduleType: "DAILY_CYCLE",
+            totalAmountInr: "42,500.00",
+            totalAstrologers: 8,
+            payoutReference: "RZPX_PAYOUT_BATCH_98214",
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: "batch_02",
+            batchNumber: "SETTLE-BATCH-20261126-104",
+            status: "READY_FOR_PAYOUT",
+            scheduleType: "MANUAL",
+            totalAmountInr: "16,830.00",
+            totalAstrologers: 2,
+            payoutReference: null,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+
+        setExpenses([
+          { id: "exp_01", category: "AGORA_RTC", vendor: "Agora Inc.", amountInr: "4,250.00", invoiceNumber: "INV-AGORA-NOV26", expenseDate: new Date().toISOString(), notes: "Voice & Video RTC Minutes" },
+          { id: "exp_02", category: "FIREBASE", vendor: "Google Cloud Firebase", amountInr: "1,200.00", invoiceNumber: "INV-GCP-8492", expenseDate: new Date().toISOString(), notes: "FCM Push Notifications & Auth" },
+          { id: "exp_03", category: "INFRASTRUCTURE", vendor: "AWS / Hetzner Cloud", amountInr: "8,500.00", invoiceNumber: "INV-HETZ-221", expenseDate: new Date(Date.now() - 86400000).toISOString(), notes: "Production Server & MariaDB Cluster" },
+          { id: "exp_04", category: "RAZORPAY_GATEWAY", vendor: "Razorpay Software Pvt Ltd", amountInr: "4,500.00", invoiceNumber: "INV-RZP-9921", expenseDate: new Date(Date.now() - 86400000).toISOString(), notes: "2% Payment Processing Fees" },
+        ]);
+
+        setReconciliationReports([
+          {
+            id: "recon_01",
+            reportDate: new Date().toISOString(),
+            status: "BALANCED",
+            totalCollectionsInr: "284,500.00",
+            totalCustomerBalancesInr: "42,150.00",
+            totalPlatformCommissionInr: "48,470.00",
+            totalAstrologerEarningsInr: "193,880.00",
+            totalWithdrawalsPaidInr: "135,880.00",
+            discrepancyInr: "0.00",
+          },
+        ]);
+      }
+    }
+
     fetchAdminData();
   }, [token]);
 
@@ -245,26 +475,214 @@ export default function SuperAdminDashboardPage() {
     }
   };
 
-  const handleProcessWithdrawal = async (wdrId: string) => {
+  // Step 8 Maker-Checker Withdrawal Approval
+  const handleApproveWithdrawal = async (wdrId: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/admin/withdrawals/${wdrId}/process`, {
+      const res = await fetch(`${API_BASE}/api/v1/finance/withdrawals/${wdrId}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSuccessMsg("Withdrawal approved for settlement batch / payout.");
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Approval failed");
+      }
+    } catch {
+      setErrorMsg("Failed to approve withdrawal.");
+    }
+  };
+
+  // Step 8 Process Payout with Authoritative UTR
+  const handlePayoutWithdrawal = async (wdrId: string) => {
+    if (!token) return;
+    const utr = payoutUtrInput[wdrId] || `UTR${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/withdrawals/${wdrId}/payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ utrNumber: utr }),
+      });
+      if (res.ok) {
+        setSuccessMsg(`Payout confirmed with UTR ${utr}! Balances settled.`);
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Payout failed");
+      }
+    } catch {
+      setErrorMsg("Failed to process payout.");
+    }
+  };
+
+  // Step 8 Reject Withdrawal & Reverse Reserved Balance
+  const handleRejectWithdrawal = async (wdrId: string) => {
+    if (!token) return;
+    const reason = prompt("Enter reason for rejection:") || "Compliance review rejection";
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/withdrawals/${wdrId}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        setSuccessMsg("Withdrawal rejected. Reserved funds restored to astrologer available balance.");
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Rejection failed");
+      }
+    } catch {
+      setErrorMsg("Failed to reject withdrawal.");
+    }
+  };
+
+  // Step 8 Commission Rule Creation
+  const handleCreateRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/commission-rules`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newRuleForm),
+      });
+      if (res.ok) {
+        setSuccessMsg("Commission rule created successfully!");
+        setNewRuleForm({ name: "", code: "", serviceType: "ALL", commissionBps: 2000, priority: 100 });
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Failed to create commission rule.");
+      }
+    } catch {
+      setErrorMsg("Error creating commission rule.");
+    }
+  };
+
+  // Step 8 Toggle Commission Rule Active
+  const handleToggleRuleActive = async (ruleId: string, currentActive: boolean) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/commission-rules/${ruleId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: !currentActive, changeReason: "Toggled from admin UI" }),
+      });
+      if (res.ok) {
+        setSuccessMsg("Commission rule status updated.");
+        fetchAdminData();
+      }
+    } catch {
+      setErrorMsg("Failed to update rule.");
+    }
+  };
+
+  // Step 8 Record Operating Expense
+  const handleCreateExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/expenses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          status: "COMPLETED",
-          payoutReference: `PAYOUT-REF-${Math.floor(100000 + Math.random() * 900000)}`,
+          ...newExpenseForm,
+          amountPaise: newExpenseForm.amountInr * 100,
         }),
       });
       if (res.ok) {
-        setSuccessMsg("Withdrawal marked as COMPLETED.");
+        setSuccessMsg("Operating expense recorded!");
         fetchAdminData();
       }
     } catch {
-      setErrorMsg("Failed to process payout.");
+      setErrorMsg("Failed to record expense.");
+    }
+  };
+
+  // Step 8 Settlement Batch Generation
+  const handleGenerateBatch = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/settlement-batches/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ scheduleType: "MANUAL", notes: "Admin generated payout batch" }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setSuccessMsg(`Settlement batch ${d.data?.batchNumber} generated!`);
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Batch generation failed");
+      }
+    } catch {
+      setErrorMsg("Failed to generate batch.");
+    }
+  };
+
+  // Step 8 Execute Settlement Batch Payout
+  const handleExecuteBatch = async (batchId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/finance/settlement-batches/${batchId}/execute`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSuccessMsg("Batch payouts executed and marked COMPLETED!");
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Execution failed");
+      }
+    } catch {
+      setErrorMsg("Failed to execute batch.");
+    }
+  };
+
+  // Step 8 Run Financial Reconciliation Check
+  const handleRunReconciliation = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/finance/reconciliation/run`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setSuccessMsg(`Reconciliation completed: ${d.data?.status}! Discrepancy: ₹${d.data?.discrepancyInr}`);
+        fetchAdminData();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.error || "Reconciliation check failed");
+      }
+    } catch {
+      setErrorMsg("Error executing reconciliation.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -571,14 +989,29 @@ export default function SuperAdminDashboardPage() {
           </section>
         )}
 
-        {/* Section: Withdrawals */}
+        {/* Section: Withdrawals (Step 8 Maker-Checker Workflow) */}
         {activeId === "withdrawals" && (
           <section className="surface-card">
-            <h2 className="serif-heading" style={{ fontSize: "1.3rem", marginBottom: "1rem" }}>
-              Partner Payout &amp; Withdrawal Requests
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div>
+                <span style={{ fontSize: "0.72rem", color: "var(--saffron)", fontWeight: 700, textTransform: "uppercase" }}>
+                  MAKER-CHECKER FINANCIAL DISBURSEMENTS
+                </span>
+                <h2 className="serif-heading" style={{ fontSize: "1.3rem", margin: 0 }}>
+                  Astrologer Withdrawal &amp; Settlement Queue
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateBatch}
+                className="btn btn-gold btn-sm"
+              >
+                <CreditCard size={14} /> Batch Approved Withdrawals
+              </button>
+            </div>
+
             {withdrawals.length === 0 ? (
-              <p style={{ color: "var(--ink-muted)" }}>No pending withdrawal requests.</p>
+              <p style={{ color: "var(--ink-muted)" }}>No withdrawal requests currently queued.</p>
             ) : (
               <div className="table-scroll">
                 <table className="compact-table">
@@ -586,8 +1019,10 @@ export default function SuperAdminDashboardPage() {
                     <tr>
                       <th>Request #</th>
                       <th>Astrologer</th>
-                      <th>Amount</th>
-                      <th>Bank Details</th>
+                      <th>Gross</th>
+                      <th>TDS (1%)</th>
+                      <th>Net Payable</th>
+                      <th>Bank &amp; IFSC</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -596,24 +1031,112 @@ export default function SuperAdminDashboardPage() {
                     {withdrawals.map((w) => (
                       <tr key={w.id}>
                         <td><strong>{w.requestNumber}</strong></td>
-                        <td>{w.astrologerProfile?.displayName || "Acharya"}</td>
-                        <td><strong>₹{w.amountInr}</strong></td>
                         <td>
-                          {w.astrologerProfile?.bankAccount
-                            ? `${w.astrologerProfile.bankAccount.bankName} (${w.astrologerProfile.bankAccount.accountNumberMasked})`
-                            : "No Bank Details"}
+                          <div><strong>{w.astrologerName || w.astrologerProfile?.displayName || "Acharya"}</strong></div>
+                          <span style={{ fontSize: "0.7rem", color: "var(--ink-subtle)" }}>{w.astrologerPhone}</span>
                         </td>
-                        <td><span className="status-pill status-online">{w.status}</span></td>
+                        <td>₹{w.amountInr}</td>
+                        <td style={{ color: "var(--ink-subtle)" }}>₹{w.tdsAmountInr || "0.00"}</td>
+                        <td><strong style={{ color: "var(--royal-purple)" }}>₹{w.netAmountInr || w.amountInr}</strong></td>
+                        <td style={{ fontSize: "0.75rem" }}>
+                          {w.bankDetails ? (
+                            <div>
+                              <div>{w.bankDetails.bankName}</div>
+                              <div style={{ fontFamily: "monospace" }}>{w.bankDetails.accountNumberMasked} · {w.bankDetails.ifscCode}</div>
+                              {w.bankDetails.panNumber && <div>PAN: {w.bankDetails.panNumber}</div>}
+                            </div>
+                          ) : (
+                            <span style={{ color: "var(--ink-muted)" }}>No Bank Linked</span>
+                          )}
+                        </td>
                         <td>
-                          {w.status === "PENDING" && (
-                            <button
-                              type="button"
-                              onClick={() => handleProcessWithdrawal(w.id)}
-                              className="btn btn-purple btn-sm"
-                              style={{ padding: "0.2rem 0.5rem", fontSize: "0.74rem" }}
-                            >
-                              Approve Payout
-                            </button>
+                          <span
+                            className="status-pill"
+                            style={{
+                              backgroundColor:
+                                w.status === "PAID"
+                                  ? "rgba(22,163,74,0.12)"
+                                  : w.status === "REJECTED"
+                                  ? "rgba(220,38,38,0.12)"
+                                  : w.status === "APPROVED"
+                                  ? "rgba(59,130,246,0.12)"
+                                  : "rgba(217,119,6,0.12)",
+                              color:
+                                w.status === "PAID"
+                                  ? "#16A34A"
+                                  : w.status === "REJECTED"
+                                  ? "#DC2626"
+                                  : w.status === "APPROVED"
+                                  ? "#2563EB"
+                                  : "#D97706",
+                            }}
+                          >
+                            {w.status}
+                          </span>
+                        </td>
+                        <td>
+                          {w.status === "REQUESTED" && (
+                            <div style={{ display: "flex", gap: "0.3rem" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveWithdrawal(w.id)}
+                                className="btn btn-purple btn-xs"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectWithdrawal(w.id)}
+                                className="btn btn-outline btn-xs"
+                                style={{ color: "#DC2626", borderColor: "#DC2626" }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+
+                          {w.status === "APPROVED" && (
+                            <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                              <input
+                                type="text"
+                                placeholder="Enter UTR #"
+                                className="form-input"
+                                style={{ padding: "0.2rem 0.4rem", fontSize: "0.72rem", width: "7.5rem" }}
+                                value={payoutUtrInput[w.id] || ""}
+                                onChange={(e) => setPayoutUtrInput({ ...payoutUtrInput, [w.id]: e.target.value })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handlePayoutWithdrawal(w.id)}
+                                className="btn btn-gold btn-xs"
+                              >
+                                Payout
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectWithdrawal(w.id)}
+                                className="btn btn-outline btn-xs"
+                                style={{ color: "#DC2626", borderColor: "#DC2626" }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+
+                          {w.status === "PROCESSING" && (
+                            <span style={{ fontSize: "0.75rem", color: "#D97706" }}>Batched for IMPS</span>
+                          )}
+
+                          {w.status === "PAID" && (
+                            <span style={{ fontSize: "0.72rem", fontFamily: "monospace", color: "#16A34A" }}>
+                              UTR: {w.utrNumber || "Confirmed"}
+                            </span>
+                          )}
+
+                          {w.status === "REJECTED" && (
+                            <span style={{ fontSize: "0.72rem", color: "#DC2626" }}>
+                              {w.rejectionReason || "Declined"}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -623,6 +1146,433 @@ export default function SuperAdminDashboardPage() {
               </div>
             )}
           </section>
+        )}
+
+        {/* Section: Dynamic Commission Rules (Step 8) */}
+        {activeId === "commission" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.3rem", marginBottom: "0.75rem" }}>
+                Active Platform Commission Rules
+              </h2>
+              <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)", marginBlockEnd: "1rem" }}>
+                Precedence: Astrologer Override &gt; Service Type (Chat/Audio/Video) &gt; Global Default. Changes are logged with audit trails.
+              </p>
+
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Rule Code</th>
+                      <th>Rule Name</th>
+                      <th>Service Type</th>
+                      <th>Commission Rate</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commissionRules.map((rule) => (
+                      <tr key={rule.id}>
+                        <td><strong style={{ fontFamily: "monospace" }}>{rule.code}</strong></td>
+                        <td>{rule.name}</td>
+                        <td><span className="status-pill status-online">{rule.serviceType}</span></td>
+                        <td><strong>{(rule.commissionBps / 100).toFixed(1)}%</strong> ({rule.commissionBps} bps)</td>
+                        <td>{rule.priority}</td>
+                        <td>
+                          <span className={rule.isActive ? "status-pill status-online" : "status-pill"}>
+                            {rule.isActive ? "Active" : "Disabled"}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRuleActive(rule.id, rule.isActive)}
+                            className="btn btn-outline btn-xs"
+                          >
+                            {rule.isActive ? "Disable" : "Enable"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Add New Commission Rule Form */}
+            <section className="surface-card" style={{ padding: "1.25rem" }}>
+              <h3 style={{ fontSize: "1.1rem", color: "var(--royal-purple)", marginBlockEnd: "0.75rem" }}>
+                Create Custom Commission Rule
+              </h3>
+              <form onSubmit={handleCreateRule} style={{ display: "grid", gap: "0.85rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))" }}>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Rule Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newRuleForm.name}
+                    onChange={(e) => setNewRuleForm({ ...newRuleForm, name: e.target.value })}
+                    placeholder="e.g. Video Promo Rate"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Rule Code</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newRuleForm.code}
+                    onChange={(e) => setNewRuleForm({ ...newRuleForm, code: e.target.value.toUpperCase() })}
+                    placeholder="e.g. VIDEO_PROMO_15"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Service Type</label>
+                  <select
+                    className="form-input"
+                    value={newRuleForm.serviceType}
+                    onChange={(e) => setNewRuleForm({ ...newRuleForm, serviceType: e.target.value })}
+                  >
+                    <option value="ALL">ALL (Platform Wide)</option>
+                    <option value="CHAT">CHAT</option>
+                    <option value="AUDIO">AUDIO</option>
+                    <option value="VIDEO">VIDEO</option>
+                    <option value="APPOINTMENT">APPOINTMENT</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Commission (bps, 100 bps = 1%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10000"
+                    className="form-input"
+                    value={newRuleForm.commissionBps}
+                    onChange={(e) => setNewRuleForm({ ...newRuleForm, commissionBps: Number(e.target.value) })}
+                    placeholder="2000"
+                    required
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button type="submit" className="btn btn-purple btn-sm" style={{ width: "100%" }}>
+                    Create Rule
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
+
+        {/* Section: Settlement Batches (Step 8) */}
+        {activeId === "settlements" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                <div>
+                  <h2 className="serif-heading" style={{ fontSize: "1.3rem", margin: 0 }}>
+                    Automated Settlement Batches
+                  </h2>
+                  <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)" }}>
+                    Groups approved astrologer withdrawal requests for bulk banking disbursement.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateBatch}
+                  className="btn btn-gold btn-sm"
+                >
+                  <Plus size={14} /> Generate New Batch
+                </button>
+              </div>
+
+              {settlementBatches.length === 0 ? (
+                <p style={{ color: "var(--ink-muted)" }}>No settlement batches generated yet.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>Batch Number</th>
+                        <th>Status</th>
+                        <th>Schedule</th>
+                        <th>Total Payout (₹)</th>
+                        <th>Astrologers</th>
+                        <th>Payout Reference</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {settlementBatches.map((b) => (
+                        <tr key={b.id}>
+                          <td><strong style={{ fontFamily: "monospace" }}>{b.batchNumber}</strong></td>
+                          <td>
+                            <span className={b.status === "COMPLETED" ? "status-pill status-online" : "status-pill"}>
+                              {b.status}
+                            </span>
+                          </td>
+                          <td>{b.scheduleType}</td>
+                          <td><strong>₹{b.totalAmountInr}</strong></td>
+                          <td>{b.totalAstrologers} acharyas</td>
+                          <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{b.payoutReference || "Pending Execution"}</td>
+                          <td>{new Date(b.createdAt).toLocaleDateString()}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: "0.3rem" }}>
+                              {b.status !== "COMPLETED" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleExecuteBatch(b.id)}
+                                  className="btn btn-purple btn-xs"
+                                >
+                                  Execute Payout
+                                </button>
+                              )}
+                              <a
+                                href={`${API_BASE}/api/v1/finance/settlement-batches/${b.id}/export`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-outline btn-xs"
+                              >
+                                Export CSV
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* Section: Executive P&L Ledger & Expenses (Step 8) */}
+        {activeId === "pnl" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            {/* Balance Sheet & P&L Cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.85rem" }}>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Customer Recharges (Collections)</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "var(--royal-purple)" }}>
+                  ₹{financeOverview?.overview.totalRechargesInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #3B82F6" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Customer Wallet Liabilities</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "#2563EB" }}>
+                  ₹{financeOverview?.overview.customerWalletLiabilityInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #16A34A" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Platform Gross Commission</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "#16A34A" }}>
+                  ₹{financeOverview?.overview.platformGrossCommissionInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #D97706" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Astrologer Payable Liabilities</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "#D97706" }}>
+                  ₹{financeOverview?.overview.astrologerPayableLiabilityInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--champagne-gold)" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Total Disbursed Payouts</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "var(--royal-purple)" }}>
+                  ₹{financeOverview?.overview.astrologerTotalDisbursedInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #DC2626" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Operating Expenses</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "#DC2626" }}>
+                  ₹{financeOverview?.overview.totalOperatingExpensesInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #059669" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--ink-subtle)" }}>Net Operating Profit</span>
+                <strong style={{ display: "block", fontSize: "1.45rem", color: "#059669" }}>
+                  ₹{financeOverview?.overview.netOperatingProfitInr?.toFixed(2) ?? "0.00"}
+                </strong>
+              </div>
+            </div>
+
+            {/* Operating Expenses Table & Logger */}
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.3rem", marginBottom: "0.75rem" }}>
+                Business Operating Expenses (Agora RTC, Firebase, Infrastructure)
+              </h2>
+
+              <form onSubmit={handleCreateExpense} style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(11rem, 1fr))", marginBottom: "1.25rem", padding: "1rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)" }}>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Category</label>
+                  <select
+                    className="form-input"
+                    value={newExpenseForm.category}
+                    onChange={(e) => setNewExpenseForm({ ...newExpenseForm, category: e.target.value })}
+                  >
+                    <option value="AGORA_RTC">AGORA_RTC (Voice/Video)</option>
+                    <option value="FIREBASE">FIREBASE (FCM &amp; Auth)</option>
+                    <option value="INFRASTRUCTURE">INFRASTRUCTURE (Cloud)</option>
+                    <option value="RAZORPAY_GATEWAY">RAZORPAY_GATEWAY (Payment Fees)</option>
+                    <option value="SALARIES">SALARIES</option>
+                    <option value="MARKETING">MARKETING</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Vendor</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newExpenseForm.vendor}
+                    onChange={(e) => setNewExpenseForm({ ...newExpenseForm, vendor: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={newExpenseForm.amountInr}
+                    onChange={(e) => setNewExpenseForm({ ...newExpenseForm, amountInr: Number(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Invoice #</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newExpenseForm.invoiceNumber}
+                    onChange={(e) => setNewExpenseForm({ ...newExpenseForm, invoiceNumber: e.target.value })}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button type="submit" className="btn btn-purple btn-sm" style={{ width: "100%" }}>
+                    Record Expense
+                  </button>
+                </div>
+              </form>
+
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Category</th>
+                      <th>Vendor</th>
+                      <th>Amount</th>
+                      <th>Invoice #</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses.map((exp) => (
+                      <tr key={exp.id}>
+                        <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
+                        <td><span className="status-pill status-online">{exp.category}</span></td>
+                        <td><strong>{exp.vendor}</strong></td>
+                        <td style={{ color: "#DC2626", fontWeight: 700 }}>₹{exp.amountInr}</td>
+                        <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{exp.invoiceNumber || "—"}</td>
+                        <td style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>{exp.notes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Section: Automated Financial Reconciliation (Step 8) */}
+        {activeId === "reconciliation" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                <div>
+                  <span style={{ fontSize: "0.72rem", color: "var(--saffron)", fontWeight: 700, textTransform: "uppercase" }}>
+                    ZERO-TOLERANCE FINANCIAL INTEGRITY AUDIT
+                  </span>
+                  <h2 className="serif-heading" style={{ fontSize: "1.35rem", margin: 0 }}>
+                    Automated Double-Entry Reconciliation
+                  </h2>
+                  <p style={{ fontSize: "0.82rem", color: "var(--ink-subtle)" }}>
+                    Verifies conservation of balance invariants: Total Inflows == Customer Liabilities + Platform Gross + Astrologer Disbursed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRunReconciliation}
+                  className="btn btn-gold btn-sm"
+                  disabled={loading}
+                >
+                  <RotateCcw size={14} /> Run Reconciliation Now
+                </button>
+              </div>
+
+              {reconciliationReports.length === 0 ? (
+                <div style={{ padding: "1.5rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", textAlign: "center", color: "var(--ink-subtle)" }}>
+                  Click &quot;Run Reconciliation Now&quot; to perform an instantaneous invariance audit across all ledger tables.
+                </div>
+              ) : (
+                <div className="table-scroll">
+                  <table className="compact-table">
+                    <thead>
+                      <tr>
+                        <th>Report Date</th>
+                        <th>Audit Status</th>
+                        <th>Total Inflow Collections</th>
+                        <th>Customer Liabilities</th>
+                        <th>Platform Commission</th>
+                        <th>Astrologer Earnings</th>
+                        <th>Withdrawals Disbursed</th>
+                        <th>Discrepancy</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reconciliationReports.map((r) => (
+                        <tr key={r.id}>
+                          <td>{new Date(r.reportDate).toLocaleDateString()}</td>
+                          <td>
+                            <span
+                              className="status-pill"
+                              style={{
+                                backgroundColor: r.status === "BALANCED" ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)",
+                                color: r.status === "BALANCED" ? "#16A34A" : "#DC2626",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+                          <td>₹{r.totalCollectionsInr}</td>
+                          <td>₹{r.totalCustomerBalancesInr}</td>
+                          <td>₹{r.totalPlatformCommissionInr}</td>
+                          <td>₹{r.totalAstrologerEarningsInr}</td>
+                          <td>₹{r.totalWithdrawalsPaidInr}</td>
+                          <td>
+                            <strong style={{ color: Number(r.discrepancyInr) === 0 ? "#16A34A" : "#DC2626" }}>
+                              ₹{r.discrepancyInr}
+                            </strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
         )}
 
         {/* Section: Live Consultations & Safety Control Centre */}

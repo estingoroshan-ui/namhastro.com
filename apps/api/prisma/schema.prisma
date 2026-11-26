@@ -217,6 +217,7 @@ model AstrologerProfile {
   availabilitySubs      AvailabilitySubscription[]
   appointments          Appointment[]
   consultationRequests  ConsultationRequest[]
+  earningsAccount       AstrologerEarningsAccount?
 
   @@index([verificationStage, availabilityStatus])
   @@index([isOnline, verificationStage])
@@ -560,7 +561,10 @@ model AstrologerBankAccount {
   bankName            String            @db.VarChar(120)
   accountNumberMasked String            @db.VarChar(64)
   ifscCode            String            @db.VarChar(32)
+  accountType         String            @default("SAVINGS") @db.VarChar(32)
+  panNumber           String?           @db.VarChar(32)
   upiId               String?           @db.VarChar(120)
+  isPrimary           Boolean           @default(true)
   isVerified          Boolean           @default(false)
   verifiedAt          DateTime?
   createdAt           DateTime          @default(now())
@@ -647,10 +651,17 @@ model WithdrawalRequest {
   astrologerProfileId String
   requestNumber       String            @unique @db.VarChar(32)
   amountPaise         BigInt
+  tdsAmountPaise      BigInt            @default(0)
+  netAmountPaise      BigInt            @default(0)
+  processingFeePaise  BigInt            @default(0)
   status              String            @default("PENDING") @db.VarChar(32)
   bankAccountId       String?           @db.VarChar(64)
   payoutReference     String?           @db.VarChar(128)
   adminNotes          String?           @db.Text
+  approvedByUserId    String?           @db.VarChar(64)
+  approvedAt          DateTime?
+  rejectionReason     String?           @db.VarChar(255)
+  utrNumber           String?           @db.VarChar(128)
   requestedAt         DateTime          @default(now())
   processedAt         DateTime?
 
@@ -808,6 +819,8 @@ model ConsultationBillingRecord {
   paidAmountPaise         BigInt              @default(0)
   astrologerEarningsPaise BigInt
   platformCommissionPaise BigInt
+  commissionBpsApplied    Int                 @default(2000)
+  tdsAmountPaise          BigInt              @default(0)
   finalizedAt             DateTime            @default(now())
 
   consultation            ConsultationRequest @relation(fields: [consultationId], references: [id], onDelete: Cascade)
@@ -1005,4 +1018,179 @@ model NotificationDelivery {
 
   @@index([userId, category])
   @@map("notification_deliveries")
+}
+
+model CommissionRule {
+  id                    String                @id @default(cuid())
+  name                  String                @db.VarChar(120)
+  code                  String                @db.VarChar(64)
+  astrologerProfileId   String?               @db.VarChar(64)
+  serviceType           String                @default("ALL") @db.VarChar(32)
+  commissionType        String                @default("PERCENTAGE") @db.VarChar(32)
+  commissionBps         Int                   @default(2000)
+  fixedAmountPaise      Int?                  @default(0)
+  slabsJson             Json?
+  priority              Int                   @default(100)
+  isActive              Boolean               @default(true)
+  effectiveFrom         DateTime              @default(now())
+  effectiveTo           DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  auditLogs             CommissionAuditLog[]
+
+  @@index([code, isActive])
+  @@index([astrologerProfileId, serviceType])
+  @@map("commission_rules")
+}
+
+model CommissionAuditLog {
+  id              String          @id @default(cuid())
+  ruleId          String
+  previousBps     Int
+  newBps          Int
+  changedByUserId String?         @db.VarChar(64)
+  changeReason    String?         @db.VarChar(255)
+  createdAt       DateTime        @default(now())
+
+  rule            CommissionRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+  @@map("commission_audit_logs")
+}
+
+model AstrologerEarningsAccount {
+  id                        String                @id @default(cuid())
+  astrologerProfileId       String                @unique
+  currency                  String                @default("INR") @db.VarChar(3)
+  grossEarningsPaise        BigInt                @default(0)
+  pendingEarningsPaise      BigInt                @default(0)
+  availableBalancePaise     BigInt                @default(0)
+  reservedWithdrawalPaise   BigInt                @default(0)
+  completedWithdrawalsPaise BigInt                @default(0)
+  tdsDeductedPaise          BigInt                @default(0)
+  refundAdjustedPaise       BigInt                @default(0)
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  astrologerProfile         AstrologerProfile     @relation(fields: [astrologerProfileId], references: [id], onDelete: Cascade)
+  ledgerEntries             EarningsLedgerEntry[]
+
+  @@map("astrologer_earnings_accounts")
+}
+
+model EarningsLedgerEntry {
+  id                    String                    @id @default(cuid())
+  earningsAccountId     String
+  astrologerProfileId   String
+  consultationId        String?                   @db.VarChar(64)
+  withdrawalRequestId   String?                   @db.VarChar(64)
+  idempotencyKey        String                    @unique @db.VarChar(128)
+  type                  String                    @db.VarChar(48)
+  amountPaise           BigInt
+  balanceAfterPaise     BigInt
+  status                String                    @default("AVAILABLE") @db.VarChar(32)
+  releaseAt             DateTime?
+  description           String                    @db.VarChar(255)
+  referenceId           String?                   @db.VarChar(128)
+  metadataJson          Json?
+  createdAt             DateTime                  @default(now())
+
+  earningsAccount       AstrologerEarningsAccount @relation(fields: [earningsAccountId], references: [id], onDelete: Cascade)
+
+  @@index([astrologerProfileId, type])
+  @@index([earningsAccountId, status])
+  @@map("earnings_ledger_entries")
+}
+
+model SettlementBatch {
+  id                    String            @id @default(cuid())
+  batchNumber           String            @unique @db.VarChar(48)
+  status                String            @default("DRAFT") @db.VarChar(32)
+  scheduleType          String            @default("MANUAL") @db.VarChar(32)
+  totalAmountPaise      BigInt            @default(0)
+  totalAstrologers      Int               @default(0)
+  payoutReference       String?           @db.VarChar(128)
+  approvedByUserId      String?           @db.VarChar(64)
+  approvedAt            DateTime?
+  notes                 String?           @db.Text
+  createdAt             DateTime          @default(now())
+  completedAt           DateTime?
+
+  items                 SettlementItem[]
+
+  @@map("settlement_batches")
+}
+
+model SettlementItem {
+  id                    String            @id @default(cuid())
+  batchId               String
+  astrologerProfileId   String
+  withdrawalRequestId   String?           @db.VarChar(64)
+  grossAmountPaise      BigInt
+  tdsAmountPaise        BigInt            @default(0)
+  processingFeePaise    BigInt            @default(0)
+  netAmountPaise        BigInt
+  payoutMethod          String            @default("IMPS") @db.VarChar(32)
+  utrReference          String?           @db.VarChar(128)
+  status                String            @default("QUEUED") @db.VarChar(32)
+  failureReason         String?           @db.VarChar(255)
+  createdAt             DateTime          @default(now())
+  processedAt           DateTime?
+
+  batch                 SettlementBatch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, status])
+  @@index([astrologerProfileId])
+  @@map("settlement_items")
+}
+
+model TaxRule {
+  id                    String            @id @default(cuid())
+  taxType               String            @db.VarChar(32)
+  code                  String            @unique @db.VarChar(64)
+  rateBps               Int
+  description           String            @db.VarChar(255)
+  effectiveFrom         DateTime          @default(now())
+  effectiveTo           DateTime?
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+
+  @@map("tax_rules")
+}
+
+model Expense {
+  id                    String            @id @default(cuid())
+  category              String            @db.VarChar(64)
+  vendor                String            @db.VarChar(120)
+  amountPaise           BigInt
+  taxAmountPaise        BigInt            @default(0)
+  paymentMethod         String            @default("BANK_TRANSFER") @db.VarChar(32)
+  invoiceNumber         String?           @db.VarChar(64)
+  expenseDate           DateTime          @default(now())
+  status                String            @default("APPROVED") @db.VarChar(32)
+  approvedByUserId      String?           @db.VarChar(64)
+  notes                 String?           @db.Text
+  createdAt             DateTime          @default(now())
+
+  @@index([category, expenseDate])
+  @@map("expenses")
+}
+
+model ReconciliationReport {
+  id                          String      @id @default(cuid())
+  reportDate                  DateTime    @default(now()) @db.Date
+  status                      String      @default("BALANCED") @db.VarChar(32)
+  totalCollectionsPaise       BigInt      @default(0)
+  totalCustomerBalancesPaise  BigInt      @default(0)
+  totalPlatformCommissionPaise BigInt     @default(0)
+  totalAstrologerEarningsPaise BigInt     @default(0)
+  totalWithdrawalsPaidPaise   BigInt      @default(0)
+  discrepancyAmountPaise      BigInt      @default(0)
+  findingsJson                Json?
+  generatedByUserId           String?     @db.VarChar(64)
+  createdAt                   DateTime    @default(now())
+
+  @@index([reportDate, status])
+  @@map("reconciliation_reports")
 }

@@ -1,5 +1,7 @@
 import { prisma } from "../db.js";
 import { FirebaseService } from "./firebase.service.js";
+import { CommissionService } from "./commission.service.js";
+import { EarningsService } from "./earnings.service.js";
 
 export interface SettlementResult {
   consultationId: string;
@@ -165,8 +167,19 @@ export class BillingService {
       totalCostPaise = single.totalCostPaise;
     }
 
-    const astrologerEarningsPaise = (totalCostPaise * 80n) / 100n;
-    const platformCommissionPaise = totalCostPaise - astrologerEarningsPaise;
+    // Dynamic Commission Resolution & Split (Step 8 Enterprise Engine)
+    const commissionRes = await CommissionService.resolveCommission({
+      astrologerProfileId: consultation.astrologerProfileId,
+      serviceType: consultation.type,
+      amountPaise: totalCostPaise,
+    });
+
+    const astrologerEarningsPaise = commissionRes.astrologerSharePaise;
+    const platformCommissionPaise = commissionRes.platformSharePaise;
+    const commissionBpsApplied = commissionRes.commissionBps;
+    // Standard TDS 1% under Section 194C/194J on astrologer earnings
+    const tdsAmountPaise = (astrologerEarningsPaise * 100n) / 10000n;
+    const netCreditedPaise = astrologerEarningsPaise - tdsAmountPaise;
 
     let promoDeducted = 0n;
     let paidDeducted = 0n;
@@ -230,7 +243,7 @@ export class BillingService {
         },
       });
 
-      // 2. Fetch & credit astrologer wallet
+      // 2. Fetch & credit astrologer wallet (legacy & UI wallet balance sync)
       const astUserId = consultation.astrologerProfile.userId;
       let astWallet = await tx.wallet.findUnique({ where: { userId: astUserId } });
       if (!astWallet) {
@@ -257,18 +270,75 @@ export class BillingService {
           balanceAfterPaise: finalAstBalance,
           referenceType: "CONSULTATION_EARNING",
           referenceId: consultationId,
-          description: `Earnings for ${consultation.type} consultation (${billableMinutes} min @ 80% share)`,
+          description: `Earnings for ${consultation.type} consultation (${billableMinutes} min @ ${(100 - commissionBpsApplied / 100).toFixed(1)}% share)`,
           metadataJson: {
             durationSeconds,
             billableMinutes,
             totalGrossPaise: totalCostPaise.toString(),
             netEarningsPaise: astrologerEarningsPaise.toString(),
             platformCommissionPaise: platformCommissionPaise.toString(),
+            commissionBpsApplied,
+            tdsAmountPaise: tdsAmountPaise.toString(),
+            ruleApplied: commissionRes.ruleCode,
           },
         },
       });
 
-      // 3. Settle hold
+      // 3. Credit Astrologer Dedicated Earnings Account (Step 8 Enterprise Ledger)
+      let earningsAccount = await tx.astrologerEarningsAccount.findUnique({
+        where: { astrologerProfileId: consultation.astrologerProfileId },
+      });
+      if (!earningsAccount) {
+        earningsAccount = await tx.astrologerEarningsAccount.create({
+          data: {
+            astrologerProfileId: consultation.astrologerProfileId,
+            grossEarningsPaise: 0n,
+            pendingEarningsPaise: 0n,
+            availableBalancePaise: 0n,
+            reservedWithdrawalPaise: 0n,
+            completedWithdrawalsPaise: 0n,
+            tdsDeductedPaise: 0n,
+            refundAdjustedPaise: 0n,
+          },
+        });
+      }
+
+      const updatedAccount = await tx.astrologerEarningsAccount.update({
+        where: { id: earningsAccount.id },
+        data: {
+          grossEarningsPaise: { increment: astrologerEarningsPaise },
+          tdsDeductedPaise: { increment: tdsAmountPaise },
+          availableBalancePaise: { increment: netCreditedPaise },
+        },
+      });
+
+      await tx.earningsLedgerEntry.create({
+        data: {
+          earningsAccountId: earningsAccount.id,
+          astrologerProfileId: consultation.astrologerProfileId,
+          consultationId,
+          idempotencyKey: `earn_entry_${consultationId}_${Date.now()}`,
+          type: "EARNING_CREDIT",
+          amountPaise: netCreditedPaise,
+          balanceAfterPaise: updatedAccount.availableBalancePaise,
+          status: "AVAILABLE",
+          description: `Earnings for ${consultation.type} consultation (${billableMinutes} min @ ${(100 - commissionBpsApplied / 100).toFixed(1)}% share, TDS ₹${(Number(tdsAmountPaise) / 100).toFixed(2)})`,
+          referenceId: consultationId,
+          metadataJson: {
+            durationSeconds,
+            billableMinutes,
+            totalGrossPaise: totalCostPaise.toString(),
+            astrologerSharePaise: astrologerEarningsPaise.toString(),
+            netCreditedPaise: netCreditedPaise.toString(),
+            platformCommissionPaise: platformCommissionPaise.toString(),
+            commissionBpsApplied,
+            tdsAmountPaise: tdsAmountPaise.toString(),
+            ruleApplied: commissionRes.ruleCode,
+          },
+        },
+      });
+
+      // 4. Settle hold
       await tx.consultationHold.updateMany({
         where: { consultationId },
         data: {
@@ -278,7 +348,7 @@ export class BillingService {
         },
       });
 
-      // 4. Create persistent billing record
+      // 5. Create persistent billing record with Step 8 commission and TDS tracking
       await tx.consultationBillingRecord.create({
         data: {
           consultationId,
@@ -290,10 +360,12 @@ export class BillingService {
           paidAmountPaise: paidDeducted,
           astrologerEarningsPaise,
           platformCommissionPaise,
+          commissionBpsApplied,
+          tdsAmountPaise,
         },
       });
 
-      // 5. Update consultation status
+      // 6. Update consultation status
       await tx.consultationRequest.update({
         where: { id: consultationId },
         data: {
