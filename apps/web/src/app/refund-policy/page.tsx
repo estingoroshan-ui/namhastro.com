@@ -1,165 +1,107 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftRight, Clock, HelpCircle, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Clock, HelpCircle, RotateCcw, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 export default function RefundPolicyPage() {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
+    <>
       <SiteHeader />
-
-      <main style={{ flex: 1, paddingBlock: "2.5rem 4rem" }}>
-        <div className="container" style={{ maxWidth: "900px" }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)", marginBlockEnd: "1.5rem" }}>
-            <Link href="/" style={{ color: "var(--color-gold)", textDecoration: "none" }}>Home</Link>
-            <span>/</span>
-            <span>Refund &amp; Cancellation Policy</span>
-          </div>
-
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "var(--radius-lg)",
-              padding: "2.5rem",
-              border: "1px solid rgba(212, 168, 79, 0.25)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBlockEnd: "1rem" }}>
-              <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044" }}>
-                <RefreshCw size={22} />
-              </div>
-              <div>
-                <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "#351044", margin: 0 }}>
-                  Refund &amp; Cancellation Policy
-                </h1>
-                <span style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
-                  Transparent, automated double-entry ledger refund rules for NAMH ASTRO
-                </span>
-              </div>
+      <main style={{ minHeight: "80vh", backgroundColor: "#FDFBF7", paddingBottom: "4rem" }}>
+        {/* Navigation Breadcrumb & Back Bar */}
+        <div style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid rgba(212,168,79,0.25)", padding: "0.85rem 0" }}>
+          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#666" }}>
+              <Link href="/" style={{ color: "#351044", fontWeight: 600, textDecoration: "none" }}>Home</Link>
+              <ChevronRight size={14} color="#D4A84F" />
+              <span style={{ color: "#D4A84F", fontWeight: 600 }}>Refund &amp; Settlement Policy</span>
             </div>
-
-            {/* Quick Summary Highlights */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: "1rem",
-                marginBlock: "1.5rem",
-              }}
+            <Link
+              href="/"
+              className="btn btn-outline btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
             >
-              <div style={{ padding: "1rem", borderRadius: "var(--radius-sm)", background: "rgba(34, 197, 94, 0.08)", border: "1px solid rgba(34, 197, 94, 0.2)" }}>
-                <div style={{ fontWeight: 600, color: "#16a34a", fontSize: "0.95rem", marginBlockEnd: "0.25rem" }}>
-                  Instant Automated Refund
-                </div>
-                <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
-                  If a call disconnects or astrologer leaves within the first 60 seconds.
-                </div>
-              </div>
-
-              <div style={{ padding: "1rem", borderRadius: "var(--radius-sm)", background: "rgba(212, 168, 79, 0.08)", border: "1px solid rgba(212, 168, 79, 0.3)" }}>
-                <div style={{ fontWeight: 600, color: "#9A7518", fontSize: "0.95rem", marginBlockEnd: "0.25rem" }}>
-                  7-Day Dispute Window
-                </div>
-                <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
-                  Submit quality complaints within 7 calendar days of consultation completion.
-                </div>
-              </div>
-
-              <div style={{ padding: "1rem", borderRadius: "var(--radius-sm)", background: "rgba(53, 16, 68, 0.05)", border: "1px solid rgba(53, 16, 68, 0.15)" }}>
-                <div style={{ fontWeight: 600, color: "#351044", fontSize: "0.95rem", marginBlockEnd: "0.25rem" }}>
-                  Bank Source Reversal
-                </div>
-                <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
-                  Unused real wallet balances refundable to original payment source (5-7 days).
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: "1.75rem", color: "#444", fontSize: "0.92rem", lineHeight: 1.65, marginTop: "1rem" }}>
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  1. Consultation Refunds (Chat / Audio / Video)
-                </h2>
-                <p>
-                  At NAMH ASTRO, your satisfaction is protected by real-time server-side session tracking:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.4rem" }}>
-                  <li>
-                    <strong>Immediate Connection Failures:</strong> If you are unable to connect with the astrologer due to a technical glitch, server error, or astrologer unavailability, 100% of the reserved coins are immediately released back into your wallet.
-                  </li>
-                  <li>
-                    <strong>Calls Under 60 Seconds:</strong> If an audio or video call disconnects within 60 seconds of joining, the call is marked as cancelled and no charge is levied.
-                  </li>
-                  <li>
-                    <strong>Poor Call Quality or Silence:</strong> If an astrologer remained unresponsive, had unintelligible audio, or behaved inappropriately, raise a dispute from your consultation history or email support@namhastro.com. Upon verification by our QA team, a 100% wallet credit will be issued.
-                  </li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  2. Wallet Recharges &amp; Source Bank Reversals
-                </h2>
-                <p>
-                  Money deposited into your NAMH ASTRO wallet via UPI, credit/debit card, or net banking remains valid indefinitely.
-                  If you wish to withdraw unspent real deposit balance back to your original bank account:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.4rem" }}>
-                  <li>Submit a withdrawal request to support@namhastro.com quoting your registered mobile number and transaction ID.</li>
-                  <li>Promotional or bonus balances granted as platform gifts are strictly non-refundable and cannot be cashed out.</li>
-                  <li>Approved bank reversals are processed via Razorpay and take between 5 to 7 business days to reflect on your card or bank statement.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  3. Online Puja Cancellations
-                </h2>
-                <p>
-                  Because personalized Pujas involve purchasing sacred samagri, reserving priests, and scheduling auspicious Muhurats:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.4rem" }}>
-                  <li><strong>More than 24 hours prior to Puja:</strong> 100% refund to NAMH ASTRO wallet.</li>
-                  <li><strong>Less than 24 hours prior to Puja:</strong> Cancellations cannot be processed as temple arrangements and samagri are finalized; however, you can reschedule to a future Muhurat at zero penalty.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  4. Astro Store Physical Products
-                </h2>
-                <p>
-                  Rudrakshas, Yantras, and energized gemstones are inspected and lab-certified before dispatch. If you receive
-                  a damaged, defective, or incorrect item:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.4rem" }}>
-                  <li>Report the defect within 48 hours of parcel delivery with unboxing photos or video to support@namhastro.com.</li>
-                  <li>We will dispatch a free courier pickup and issue an immediate replacement or full wallet refund.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  5. Dispute Resolution Process
-                </h2>
-                <p>
-                  To initiate a refund request, simply email <strong>support@namhastro.com</strong> or fill out our 
-                  <Link href="/contact" style={{ color: "var(--color-gold)", textDecoration: "none", fontWeight: 600 }}> Contact Support Form</Link>.
-                  Our customer dispute desk reviews and resolves all claims within 24 business hours.
-                </p>
-              </section>
-            </div>
+              <ArrowLeft size={14} /> Back to Home
+            </Link>
           </div>
         </div>
-      </main>
 
+        {/* Hero Section */}
+        <section style={{ background: "linear-gradient(135deg, #351044 0%, #240B32 100%)", color: "#FFFFFF", padding: "2.5rem 0" }}>
+          <div className="container" style={{ textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.85rem", borderRadius: "9999px", backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(212,168,79,0.5)", color: "#F8D677", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.85rem" }}>
+              <RotateCcw size={14} /> 100% Devotee Satisfaction Commitment
+            </span>
+            <h1 className="serif-heading" style={{ fontSize: "clamp(1.75rem, 2.5vw, 2.5rem)", color: "#FFFFFF", marginBottom: "0.75rem" }}>
+              Refund, Dispute &amp; Settlement Policy
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.95rem", lineHeight: 1.6 }}>
+              Last Updated: November 26, 2026 · Transparent per-minute billing with guaranteed rapid resolutions for dropped calls or unsatisfactory sessions.
+            </p>
+          </div>
+        </section>
+
+        {/* Policy Content */}
+        <section className="container" style={{ marginTop: "2.5rem" }}>
+          <div className="surface-card" style={{ maxWidth: "850px", margin: "0 auto", padding: "2.5rem", backgroundColor: "#FFFFFF", lineHeight: 1.8, color: "#444", fontSize: "0.92rem" }}>
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "0 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              1. 60-Second Instant Drop Guarantee
+            </h2>
+            <p>
+              We understand network fluctuations can occur. If an audio or video call disconnects within the <strong>first 60 seconds</strong> of connection, our automated billing engine cancels the session with <strong>zero deduction</strong>. 100% of your reserved wallet funds are automatically unlocked immediately.
+            </p>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              2. Eligibility for Consultation Refunds
+            </h2>
+            <p>
+              A complete or partial refund credit to your Devotee Wallet will be granted under the following circumstances:
+            </p>
+            <ul style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+              <li><strong>Severe Audio/Video Disturbance:</strong> Agora RTC network jitter or packet loss exceeding 40% rendering the conversation unintelligible.</li>
+              <li><strong>Astrologer Inactivity:</strong> The astrologer failed to respond, remained silent, or was unresponsive during the active consultation timer.</li>
+              <li><strong>Incomplete Paid Report:</strong> Personalised PDF reports not delivered within the promised 24–48 hour delivery timeline.</li>
+              <li><strong>Duplicate Recharge:</strong> Unintentional multiple payments debited through UPI or payment gateway for a single recharge request.</li>
+            </ul>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              3. Online Puja Booking Cancellations
+            </h2>
+            <p>
+              Online Puja rituals involve temple logistics, offering preparations, and assigning Vedic priests:
+            </p>
+            <ul style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+              <li><strong>Before Priest Assignment:</strong> Full 100% refund credited back to your original payment method or Devotee Wallet.</li>
+              <li><strong>After Priest Assignment &amp; Sankalp Preparation:</strong> 50% refund, as sacred samagri and temple booking slots have been locked.</li>
+              <li><strong>Post-Puja Ceremony:</strong> Once the ritual is solemnized with video proof, refunds cannot be processed.</li>
+            </ul>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              4. Astro Store Gemstone &amp; Product Returns
+            </h2>
+            <p>
+              All physical merchandise (energized gemstones, Rudrakshas, Yantras) are backed by our <strong>7-Day Transit Replacement Guarantee</strong>. If an item arrives damaged, defective, or with an unsealed laboratory certification certificate, notify support@namhastro.com within 7 days of delivery for a free courier exchange or full refund.
+            </p>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              5. Dispute Filing &amp; Resolution SLA
+            </h2>
+            <p>
+              To claim a refund, click &quot;Report Issue&quot; on your consultation log in <strong>/account</strong> or email support@namhastro.com with your consultation ID. Our operations team reviews the server logs and resolves all verified claims within <strong>2 to 4 business hours</strong>.
+            </p>
+
+            <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(0,0,0,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+              <span style={{ fontSize: "0.85rem", color: "#777" }}>Dispute Desk: <strong>refunds@namhastro.com</strong></span>
+              <Link href="/contact" className="btn btn-outline btn-sm">
+                File a Support Dispute →
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
       <SiteFooter />
-      <MobileBottomNav />
-    </div>
+    </>
   );
 }

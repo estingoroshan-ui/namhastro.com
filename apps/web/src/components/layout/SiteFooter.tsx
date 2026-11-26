@@ -8,7 +8,17 @@ export function SiteFooter() {
       <div className="container">
         <div className="footer-grid" style={{ marginBlockEnd: "2.25rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBlockEnd: "0.9rem" }}>
+            <Link
+              href="/"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.6rem",
+                marginBlockEnd: "0.9rem",
+                textDecoration: "none",
+              }}
+              aria-label="NAMH ASTRO Home"
+            >
               <NamhAstroLogo size={42} />
               <div>
                 <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.45rem", fontWeight: 700, color: "#FFFFFF" }}>
@@ -18,7 +28,7 @@ export function SiteFooter() {
                   Sacred Vedic Wisdom
                 </div>
               </div>
-            </div>
+            </Link>
             <p style={{ color: "rgba(255,255,255,0.78)", fontSize: "0.86rem", marginBlockEnd: "1rem" }}>
               NAMH ASTRO is India&apos;s trusted Vedic astrology consultation marketplace connecting
               seekers with verified astrologers via private chat, audio calls, video sessions,
@@ -56,39 +66,38 @@ export function SiteFooter() {
               Vedic Services
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/kundli">Free Janam Kundli</Link></li>
+              <li><Link href="/#free-kundli">Free Janam Kundli</Link></li>
               <li><Link href="/#kundli-matching">Kundli Matching (Guna Milan)</Link></li>
-              <li><Link href="/horoscope">Daily Horoscope</Link></li>
-              <li><Link href="/panchang">Today&apos;s Panchang &amp; Muhurat</Link></li>
-              <li><Link href="/puja">Online Puja Booking</Link></li>
-              <li><Link href="/store">NAMH Astro Store</Link></li>
+              <li><Link href="/#daily-horoscope">Daily Horoscope</Link></li>
+              <li><Link href="/#panchang">Today&apos;s Panchang &amp; Muhurat</Link></li>
+              <li><Link href="/#puja-booking">Online Puja Booking</Link></li>
+              <li><Link href="/#astro-store">NAMH Astro Store</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 style={{ color: "#F2C96B", fontSize: "0.95rem", marginBlockEnd: "0.85rem" }}>
-              Company &amp; Portals
+              Portals &amp; Account
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/about">About NAMH ASTRO</Link></li>
               <li><Link href="/account">Customer Dashboard</Link></li>
               <li><Link href="/account/wallet">My Wallet &amp; Recharge</Link></li>
-              <li><Link href="/partner">Astrologer Partner Portal</Link></li>
-              <li><Link href="/pandit">Pandit Portal</Link></li>
+              <li><Link href="/partner">Astrologer Partner Dashboard</Link></li>
               <li><Link href="/admin">Super Admin Dashboard</Link></li>
+              <li><Link href="/#download-app">Download Android &amp; iOS App</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 style={{ color: "#F2C96B", fontSize: "0.95rem", marginBlockEnd: "0.85rem" }}>
-              Trust &amp; Support
+              Trust &amp; Policies
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/contact">Contact &amp; 24x7 Support</Link></li>
-              <li><Link href="/faq">Frequently Asked Questions</Link></li>
-              <li><Link href="/privacy">Privacy &amp; Data Protection</Link></li>
-              <li><Link href="/refund-policy">Refund &amp; Cancellation Policy</Link></li>
-              <li><Link href="/terms">Terms of Service</Link></li>
+              <li><Link href="/#how-it-works">How NAMH ASTRO Works</Link></li>
+              <li><Link href="/#reviews">Verified Customer Reviews</Link></li>
+              <li><Link href="/account">Privacy &amp; Data Protection</Link></li>
+              <li><Link href="/account/wallet">Refund &amp; Billing Policy</Link></li>
+              <li><Link href="/account">Terms of Service</Link></li>
             </ul>
           </div>
         </div>

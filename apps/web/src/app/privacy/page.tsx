@@ -1,129 +1,109 @@
 "use client";
 
 import Link from "next/link";
-import { Database, Lock, ShieldCheck, UserCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronRight, Database, Lock, ShieldCheck, Sparkles, UserCheck } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
-export default function PrivacyPage() {
+export default function PrivacyPolicyPage() {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
+    <>
       <SiteHeader />
-
-      <main style={{ flex: 1, paddingBlock: "2.5rem 4rem" }}>
-        <div className="container" style={{ maxWidth: "900px" }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)", marginBlockEnd: "1.5rem" }}>
-            <Link href="/" style={{ color: "var(--color-gold)", textDecoration: "none" }}>Home</Link>
-            <span>/</span>
-            <span>Privacy Policy</span>
-          </div>
-
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "var(--radius-lg)",
-              padding: "2.5rem",
-              border: "1px solid rgba(212, 168, 79, 0.25)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBlockEnd: "1rem" }}>
-              <div style={{ width: "44px", height: "44px", borderRadius: "10px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044" }}>
-                <Lock size={22} />
-              </div>
-              <div>
-                <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "#351044", margin: 0 }}>
-                  Privacy Policy &amp; Data Protection
-                </h1>
-                <span style={{ fontSize: "0.82rem", color: "var(--color-text-muted)" }}>
-                  Compliance: Digital Personal Data Protection Act 2023 (DPDP) &amp; IT Rules 2011
-                </span>
-              </div>
+      <main style={{ minHeight: "80vh", backgroundColor: "#FDFBF7", paddingBottom: "4rem" }}>
+        {/* Navigation Breadcrumb & Back Bar */}
+        <div style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid rgba(212,168,79,0.25)", padding: "0.85rem 0" }}>
+          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#666" }}>
+              <Link href="/" style={{ color: "#351044", fontWeight: 600, textDecoration: "none" }}>Home</Link>
+              <ChevronRight size={14} color="#D4A84F" />
+              <span style={{ color: "#D4A84F", fontWeight: 600 }}>Privacy Policy</span>
             </div>
-
-            <div style={{ display: "grid", gap: "1.75rem", color: "#444", fontSize: "0.92rem", lineHeight: 1.65, marginTop: "1.5rem" }}>
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  1. Information We Collect
-                </h2>
-                <p>
-                  To provide accurate Vedic astrological insights and seamless communications, we collect:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.35rem" }}>
-                  <li><strong>Contact Details:</strong> Full name, phone number, and email address for account creation and OTP authentication.</li>
-                  <li><strong>Astrological Parameters:</strong> Date of birth, precise time of birth, birth city, latitude, longitude, and gender (essential for computing planetary longitudes and Janam Kundli Bhavas).</li>
-                  <li><strong>Financial Data:</strong> Recharge history, ledger logs, and transaction reference IDs. (Note: We do NOT store credit/debit card numbers or CVV; all payment transactions are tokenized via PCI-DSS certified Razorpay).</li>
-                  <li><strong>Consultation Metadata:</strong> Call durations, chat timestamps, and connection health metrics to resolve billing disputes.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  2. Complete Astrologer Anonymity
-                </h2>
-                <p>
-                  Your privacy is sacred. When you initiate an audio call, video consultation, or chat session, our
-                  WebRTC Agora proxy ensures that your actual phone number, email address, and real identity are never
-                  revealed to the astrologer. The astrologer only sees the birth details you explicitly authorize for Kundli analysis.
-                </p>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  3. Media Encryption &amp; Storage
-                </h2>
-                <p>
-                  Live voice and video streams are transmitted through end-to-end encrypted WebRTC channels. We do not
-                  routinely record live calls. If an astrologer or customer requests a quality evaluation or files a dispute,
-                  only server metadata is referenced. Chat transcripts are encrypted at rest in our secure MySQL database.
-                </p>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  4. Non-Disclosure &amp; Third-Party Marketing
-                </h2>
-                <p>
-                  We have a strict <strong>Zero Third-Party Data Sale</strong> policy. Your birth chart, personal dilemmas,
-                  and contact information will NEVER be sold, rented, or shared with commercial marketing agencies, data brokers,
-                  or lead generation firms.
-                </p>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  5. Your Data Rights
-                </h2>
-                <p>
-                  Under Indian privacy regulations, you have the right to:
-                </p>
-                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", display: "grid", gap: "0.35rem" }}>
-                  <li>Access your stored birth profiles and consultation history at any time via your Customer Dashboard.</li>
-                  <li>Update, correct, or delete individual family birth profiles.</li>
-                  <li>Request complete account deletion and erasure of data by emailing support@namhastro.com.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  6. Grievance Officer
-                </h2>
-                <p>
-                  For any privacy inquiries or grievance redressal, please reach out to our appointed Data Privacy Officer:
-                  <br />
-                  <strong>Email:</strong> privacy@namhastro.com / support@namhastro.com<br />
-                  <strong>Address:</strong> NAMH ASTRO Technologies Private Limited, Kailash Vedic Complex, Bengaluru, Karnataka, 560001.
-                </p>
-              </section>
-            </div>
+            <Link
+              href="/"
+              className="btn btn-outline btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+            >
+              <ArrowLeft size={14} /> Back to Home
+            </Link>
           </div>
         </div>
-      </main>
 
+        {/* Hero Section */}
+        <section style={{ background: "linear-gradient(135deg, #351044 0%, #240B32 100%)", color: "#FFFFFF", padding: "2.5rem 0" }}>
+          <div className="container" style={{ textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.85rem", borderRadius: "9999px", backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(212,168,79,0.5)", color: "#F8D677", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.85rem" }}>
+              <Lock size={14} /> DPDP Act 2023 &amp; Global Privacy Standards
+            </span>
+            <h1 className="serif-heading" style={{ fontSize: "clamp(1.75rem, 2.5vw, 2.5rem)", color: "#FFFFFF", marginBottom: "0.75rem" }}>
+              Privacy &amp; Data Protection Policy
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.95rem", lineHeight: 1.6 }}>
+              Last Updated: November 26, 2026 · We protect your sacred birth information and personal communications with zero compromises.
+            </p>
+          </div>
+        </section>
+
+        {/* Policy Body */}
+        <section className="container" style={{ marginTop: "2.5rem" }}>
+          <div className="surface-card" style={{ maxWidth: "850px", margin: "0 auto", padding: "2.5rem", backgroundColor: "#FFFFFF", lineHeight: 1.8, color: "#444", fontSize: "0.92rem" }}>
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "0 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              1. Our Privacy Commitment
+            </h2>
+            <p>
+              NAMH ASTRO Technologies Private Limited (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) holds the privacy and sanctity of our devotees in the highest regard. This Privacy Policy details how we collect, process, encrypt, and safeguard your personal information across our website (<strong>https://namhastro.com</strong>) and mobile applications.
+            </p>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              2. Information We Collect
+            </h2>
+            <ul style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+              <li><strong>Personal Profile:</strong> Full name, phone number, email address, gender, and preferred language.</li>
+              <li><strong>Astrological Birth Data:</strong> Date of birth, exact birth time, and geographic birth coordinates used strictly for Vedic Janam Kundli calculations.</li>
+              <li><strong>Consultation Metadata:</strong> Session timestamps, call duration, per-minute billing logs, and chat messages encrypted in transit and at rest.</li>
+              <li><strong>Transaction Data:</strong> Payment gateway tokens, Razorpay payment IDs, and double-entry wallet ledger records (we never store debit/credit card numbers or CVV).</li>
+            </ul>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              3. Strict Masking &amp; Calling Privacy (Agora WebRTC)
+            </h2>
+            <div style={{ padding: "1.25rem", backgroundColor: "#F0FFF4", border: "1px solid #9AE6B4", borderRadius: "8px", margin: "1rem 0" }}>
+              <strong style={{ color: "#22543D", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <ShieldCheck size={18} /> Zero Contact Sharing Guarantee
+              </strong>
+              <p style={{ margin: "0.4rem 0 0", color: "#276749", fontSize: "0.88rem" }}>
+                Your personal phone number is NEVER revealed to astrologers or pandits. Audio and video consultations are conducted using short-lived cryptographically signed tokens generated by our server over Agora WebRTC. Astrologers identify you solely by your chosen devotee display name.
+              </p>
+            </div>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              4. Data Security &amp; Encryption Standards
+            </h2>
+            <p>
+              All communication between your device and our backend is encrypted using TLS 1.3 protocol. Sensitive records, birth charts, and user tokens are stored with AES-256 military-grade encryption within firewalled MariaDB and Redis instances hosted in certified tier-4 Indian data centers.
+            </p>
+
+            <h2 style={{ fontSize: "1.35rem", color: "#351044", margin: "1.75rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              5. Your Rights Under DPDP Act 2023
+            </h2>
+            <p>
+              As a Data Principal under India&apos;s Digital Personal Data Protection Act 2023, you retain absolute authority over your personal information:
+            </p>
+            <ul style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+              <li><strong>Right to Access:</strong> View and export your complete birth charts and wallet transaction history.</li>
+              <li><strong>Right to Rectification:</strong> Update inaccurate birth times, places, or contact details at any time.</li>
+              <li><strong>Right to Erasure (Forget Me):</strong> Request complete permanent deletion of your account and records by emailing our Data Protection Officer.</li>
+            </ul>
+
+            <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(0,0,0,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+              <span style={{ fontSize: "0.85rem", color: "#777" }}>Data Protection Officer: <strong>dpo@namhastro.com</strong></span>
+              <Link href="/terms" className="btn btn-outline btn-sm">
+                View Terms of Service →
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
       <SiteFooter />
-      <MobileBottomNav />
-    </div>
+    </>
   );
 }

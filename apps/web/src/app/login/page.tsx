@@ -1,85 +1,90 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
-import {
-  ArrowRight,
-  CheckCircle2,
-  KeyRound,
-  Lock,
-  Mail,
-  Phone,
-  ShieldCheck,
-  Sparkles,
-  User,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Lock, Mail, Phone, ShieldCheck, Sparkles, User } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { useAuth } from "@/context/AuthContext";
+import { NamhAstroLogo } from "@/components/icons/ZodiacIcons";
 
-function LoginForm() {
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect") || "/account";
-
   const { user, sendOtp, verifyOtp, loginWithPassword, registerWithEmail } = useAuth();
 
-  const [mode, setMode] = useState<"OTP" | "PASSWORD" | "REGISTER">("OTP");
+  const [mode, setMode] = useState<"otp" | "password" | "register">("otp");
+  const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      router.push(redirectUrl);
-    }
-  }, [user, redirectUrl, router]);
+  // If already logged in, show redirect card
+  if (user) {
+    return (
+      <>
+        <SiteHeader />
+        <main style={{ minHeight: "80vh", backgroundColor: "#FDFBF7", display: "grid", placeItems: "center", padding: "2rem 1rem" }}>
+          <div className="surface-card" style={{ maxWidth: "450px", width: "100%", padding: "2.5rem", textAlign: "center" }}>
+            <CheckCircle2 size={50} color="#2E7D32" style={{ margin: "0 auto 1rem" }} />
+            <h2 style={{ fontSize: "1.5rem", color: "#351044", marginBottom: "0.5rem", fontFamily: "var(--font-serif, serif)" }}>
+              Welcome back, {user.fullName}!
+            </h2>
+            <p style={{ color: "#666", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+              You are currently authenticated as a verified devotee.
+            </p>
+            <div style={{ display: "grid", gap: "0.75rem" }}>
+              <Link href="/account" className="btn btn-purple" style={{ textDecoration: "none" }}>
+                Go to Customer Dashboard <ArrowRight size={15} />
+              </Link>
+              <Link href="/" className="btn btn-outline" style={{ textDecoration: "none" }}>
+                ← Return to Home
+              </Link>
+            </div>
+          </div>
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!phone || phone.replace(/\D/g, "").length < 10) {
+      setError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
     setLoading(true);
-    try {
-      const res = await sendOtp(phone);
-      if (res.success) {
-        setOtpSent(true);
-        if (res.debugOtp) {
-          setDebugOtp(res.debugOtp);
-        }
-      } else {
-        setError(res.message || "Failed to send OTP. Please check your phone number.");
-      }
-    } catch (err: any) {
-      setError(err?.message || "An error occurred while sending OTP.");
-    } finally {
-      setLoading(false);
+    const res = await sendOtp(phone);
+    setLoading(false);
+    if (res.success) {
+      setStep("otp");
+      if (res.debugOtp) setDebugOtp(res.debugOtp);
+    } else {
+      setError(res.message || "Failed to send OTP. Please try again.");
     }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (otp.length !== 6) {
+      setError("Please enter the 6-digit OTP code.");
+      return;
+    }
     setLoading(true);
-    try {
-      const res = await verifyOtp(phone, otp, fullName || undefined);
-      if (res.success) {
-        router.push(redirectUrl);
-      } else {
-        setError(res.error || "Invalid OTP code. Please try again.");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Failed to verify OTP.");
-    } finally {
-      setLoading(false);
+    const res = await verifyOtp(phone, otp, fullName || undefined);
+    setLoading(false);
+    if (res.success) {
+      router.push("/account");
+    } else {
+      setError(res.error || "Incorrect OTP. Please check and try again.");
     }
   };
 
@@ -87,17 +92,12 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    try {
-      const res = await loginWithPassword(email, password);
-      if (res.success) {
-        router.push(redirectUrl);
-      } else {
-        setError(res.error || "Invalid credentials. Please verify your email and password.");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Login failed.");
-    } finally {
-      setLoading(false);
+    const res = await loginWithPassword(email, password);
+    setLoading(false);
+    if (res.success) {
+      router.push("/account");
+    } else {
+      setError(res.error || "Invalid email or password.");
     }
   };
 
@@ -105,531 +105,338 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    try {
-      const res = await registerWithEmail({
-        fullName,
-        email,
-        password,
-        phone: phone || undefined,
-      });
-      if (res.success) {
-        setSuccessMsg("Registration successful! Redirecting to your dashboard...");
-        setTimeout(() => router.push(redirectUrl), 1000);
-      } else {
-        setError(res.error || "Registration failed. Email or phone may already be registered.");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Registration failed.");
-    } finally {
-      setLoading(false);
+    const res = await registerWithEmail({ fullName, email, password, phone: phone || undefined });
+    setLoading(false);
+    if (res.success) {
+      router.push("/account");
+    } else {
+      setError(res.error || "Registration failed. Please try again.");
     }
   };
 
+  const handleQuickDemo = async () => {
+    setLoading(true);
+    setError(null);
+    const demoPhone = "9988776655";
+    setPhone(demoPhone);
+    const sendRes = await sendOtp(demoPhone);
+    if (sendRes.success && sendRes.debugOtp) {
+      const vRes = await verifyOtp(demoPhone, sendRes.debugOtp, "Rohan Sharma");
+      if (vRes.success) {
+        router.push("/account");
+      }
+    }
+    setLoading(false);
+  };
+
   return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        borderRadius: "var(--radius-lg)",
-        padding: "2.5rem 2rem",
-        border: "1px solid rgba(212, 168, 79, 0.3)",
-        boxShadow: "0 8px 30px rgba(53, 16, 68, 0.08)",
-      }}
-    >
-      <div style={{ textAlign: "center", marginBlockEnd: "1.75rem" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.4rem",
-            padding: "0.3rem 0.8rem",
-            borderRadius: "999px",
-            background: "rgba(212, 168, 79, 0.15)",
-            border: "1px solid rgba(212, 168, 79, 0.35)",
-            color: "#9A7518",
-            fontSize: "0.8rem",
-            fontWeight: 600,
-            textTransform: "uppercase",
-            marginBlockEnd: "0.75rem",
-          }}
-        >
-          <Sparkles size={13} /> Sacred Access
+    <>
+      <SiteHeader />
+      <main style={{ minHeight: "85vh", backgroundColor: "#FDFBF7", paddingBottom: "4rem" }}>
+        {/* Navigation Breadcrumb & Back Bar */}
+        <div style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid rgba(212,168,79,0.25)", padding: "0.85rem 0" }}>
+          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#666" }}>
+              <Link href="/" style={{ color: "#351044", fontWeight: 600, textDecoration: "none" }}>Home</Link>
+              <ChevronRight size={14} color="#D4A84F" />
+              <span style={{ color: "#D4A84F", fontWeight: 600 }}>Devotee Login</span>
+            </div>
+            <Link
+              href="/"
+              className="btn btn-outline btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+            >
+              <ArrowLeft size={14} /> Back to Home
+            </Link>
+          </div>
         </div>
-        <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "1.85rem", color: "#351044", margin: "0 0 0.35rem 0" }}>
-          {mode === "REGISTER" ? "Create Devotee Account" : "Devotee Sign In"}
-        </h1>
-        <p style={{ color: "var(--color-text-muted)", fontSize: "0.88rem", margin: 0 }}>
-          {mode === "REGISTER"
-            ? "Receive ₹100 complimentary promotional balance on signup"
-            : "Access your birth profiles, wallet balance, and consultation history"}
-        </p>
-      </div>
 
-      {/* Mode Switcher */}
-      <div
-        style={{
-          display: "flex",
-          borderRadius: "var(--radius-sm)",
-          background: "rgba(53, 16, 68, 0.05)",
-          padding: "0.25rem",
-          marginBlockEnd: "1.5rem",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            setMode("OTP");
-            setError(null);
-          }}
-          style={{
-            flex: 1,
-            padding: "0.5rem",
-            borderRadius: "var(--radius-xs)",
-            border: "none",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "OTP" ? "#FFFFFF" : "transparent",
-            color: mode === "OTP" ? "#351044" : "var(--color-text-muted)",
-            boxShadow: mode === "OTP" ? "0 2px 4px rgba(0,0,0,0.06)" : "none",
-            transition: "all 0.2s ease",
-          }}
-        >
-          Mobile OTP
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("PASSWORD");
-            setError(null);
-          }}
-          style={{
-            flex: 1,
-            padding: "0.5rem",
-            borderRadius: "var(--radius-xs)",
-            border: "none",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "PASSWORD" ? "#FFFFFF" : "transparent",
-            color: mode === "PASSWORD" ? "#351044" : "var(--color-text-muted)",
-            boxShadow: mode === "PASSWORD" ? "0 2px 4px rgba(0,0,0,0.06)" : "none",
-            transition: "all 0.2s ease",
-          }}
-        >
-          Password
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("REGISTER");
-            setError(null);
-          }}
-          style={{
-            flex: 1,
-            padding: "0.5rem",
-            borderRadius: "var(--radius-xs)",
-            border: "none",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "REGISTER" ? "#FFFFFF" : "transparent",
-            color: mode === "REGISTER" ? "#351044" : "var(--color-text-muted)",
-            boxShadow: mode === "REGISTER" ? "0 2px 4px rgba(0,0,0,0.06)" : "none",
-            transition: "all 0.2s ease",
-          }}
-        >
-          New User
-        </button>
-      </div>
+        {/* Auth Form Card */}
+        <section className="container" style={{ marginTop: "2.5rem", display: "grid", placeItems: "center" }}>
+          <div
+            className="surface-card"
+            style={{
+              maxWidth: "480px",
+              width: "100%",
+              padding: "0",
+              overflow: "hidden",
+              borderRadius: "14px",
+              boxShadow: "0 10px 30px rgba(53,16,68,0.08)",
+            }}
+          >
+            {/* Header Banner */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #351044 0%, #240B32 100%)",
+                color: "#FFFFFF",
+                padding: "2rem 1.5rem",
+                textAlign: "center",
+              }}
+            >
+              <Link href="/" style={{ display: "inline-block", marginBottom: "0.75rem", textDecoration: "none" }}>
+                <NamhAstroLogo size={48} />
+              </Link>
+              <h1 style={{ fontSize: "1.45rem", color: "#FFFFFF", margin: "0 0 0.3rem", fontFamily: "var(--font-serif, serif)" }}>
+                Devotee Sign In
+              </h1>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.84rem", margin: 0 }}>
+                Access Janam Kundli, Devotee Wallet &amp; Consultations
+              </p>
+            </div>
 
-      {error && (
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            borderRadius: "var(--radius-sm)",
-            background: "rgba(239, 68, 68, 0.08)",
-            border: "1px solid rgba(239, 68, 68, 0.25)",
-            color: "#b91c1c",
-            fontSize: "0.85rem",
-            marginBlockEnd: "1.25rem",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {successMsg && (
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            borderRadius: "var(--radius-sm)",
-            background: "rgba(34, 197, 94, 0.08)",
-            border: "1px solid rgba(34, 197, 94, 0.25)",
-            color: "#15803d",
-            fontSize: "0.85rem",
-            marginBlockEnd: "1.25rem",
-          }}
-        >
-          {successMsg}
-        </div>
-      )}
-
-      {/* MODE 1: OTP AUTH */}
-      {mode === "OTP" && (
-        <>
-          {!otpSent ? (
-            <form onSubmit={handleSendOtp} style={{ display: "grid", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-                  Mobile Phone Number
-                </label>
-                <div style={{ position: "relative" }}>
-                  <Phone size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9876543210"
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid rgba(53, 16, 68, 0.2)",
-                      fontSize: "0.95rem",
-                    }}
-                  />
-                </div>
-              </div>
-
+            {/* Mode Switcher Tabs */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid rgba(212,168,79,0.25)" }}>
               <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary"
+                type="button"
+                onClick={() => { setMode("otp"); setStep("phone"); setError(null); }}
                 style={{
                   padding: "0.75rem",
-                  borderRadius: "var(--radius-sm)",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
+                  border: "none",
+                  backgroundColor: mode === "otp" ? "#FFFFFF" : "#F7F5FA",
+                  color: mode === "otp" ? "#351044" : "#777",
+                  fontWeight: mode === "otp" ? 700 : 500,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  borderBottom: mode === "otp" ? "2px solid #D4A84F" : "none",
                 }}
               >
-                {loading ? "Sending OTP..." : "Get Verification Code"} <ArrowRight size={16} />
+                OTP Login
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} style={{ display: "grid", gap: "1rem" }}>
-              {debugOtp && (
-                <div
-                  style={{
-                    padding: "0.6rem 0.85rem",
-                    borderRadius: "var(--radius-sm)",
-                    background: "rgba(212, 168, 79, 0.12)",
-                    border: "1px solid rgba(212, 168, 79, 0.4)",
-                    color: "#9A7518",
-                    fontSize: "0.82rem",
-                  }}
-                >
-                  <strong>Test Simulation OTP:</strong> {debugOtp}
+              <button
+                type="button"
+                onClick={() => { setMode("password"); setError(null); }}
+                style={{
+                  padding: "0.75rem",
+                  border: "none",
+                  backgroundColor: mode === "password" ? "#FFFFFF" : "#F7F5FA",
+                  color: mode === "password" ? "#351044" : "#777",
+                  fontWeight: mode === "password" ? 700 : 500,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  borderBottom: mode === "password" ? "2px solid #D4A84F" : "none",
+                }}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("register"); setError(null); }}
+                style={{
+                  padding: "0.75rem",
+                  border: "none",
+                  backgroundColor: mode === "register" ? "#FFFFFF" : "#F7F5FA",
+                  color: mode === "register" ? "#351044" : "#777",
+                  fontWeight: mode === "register" ? 700 : 500,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  borderBottom: mode === "register" ? "2px solid #D4A84F" : "none",
+                }}
+              >
+                New Account
+              </button>
+            </div>
+
+            <div style={{ padding: "1.75rem" }}>
+              {error && (
+                <div style={{ padding: "0.75rem", backgroundColor: "#FFF5F5", border: "1px solid #FED7D7", borderRadius: "8px", color: "#C53030", fontSize: "0.84rem", marginBottom: "1rem" }}>
+                  {error}
                 </div>
               )}
 
-              <div>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-                  Enter 6-Digit OTP sent to {phone}
-                </label>
-                <div style={{ position: "relative" }}>
-                  <KeyRound size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="123456"
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid rgba(53, 16, 68, 0.2)",
-                      fontSize: "1.1rem",
-                      letterSpacing: "0.2em",
-                    }}
-                  />
-                </div>
+              {/* Mode: OTP */}
+              {mode === "otp" && step === "phone" && (
+                <form onSubmit={handleSendOtp} style={{ display: "grid", gap: "1rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Mobile Number
+                    </label>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <span style={{ padding: "0.55rem 0.75rem", backgroundColor: "#F7F5FA", border: "1px solid var(--border)", borderRadius: "6px", fontSize: "0.9rem", color: "#555", fontWeight: 600 }}>
+                        +91
+                      </span>
+                      <input
+                        type="tel"
+                        required
+                        className="form-input"
+                        placeholder="98765 43210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Full Name (Optional for first-time login)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Aarav Sharma"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} className="btn btn-gold" style={{ width: "100%", padding: "0.75rem", fontWeight: 600 }}>
+                    {loading ? "Sending OTP..." : "Get Verification Code"}
+                  </button>
+                </form>
+              )}
+
+              {/* Mode: OTP Verification */}
+              {mode === "otp" && step === "otp" && (
+                <form onSubmit={handleVerifyOtp} style={{ display: "grid", gap: "1rem" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <span style={{ fontSize: "0.82rem", color: "#666" }}>
+                      OTP sent to +91 {phone}
+                    </span>
+                    {debugOtp && (
+                      <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", color: "#2E7D32", fontWeight: 600, backgroundColor: "#F0FFF4", padding: "0.3rem", borderRadius: "4px" }}>
+                        Demo Auto-fill OTP: {debugOtp}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Enter 6-Digit Code
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      className="form-input"
+                      style={{ textAlign: "center", fontSize: "1.25rem", letterSpacing: "0.4em", fontWeight: 700 }}
+                      placeholder="••••••"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} className="btn btn-purple" style={{ width: "100%", padding: "0.75rem", fontWeight: 600 }}>
+                    {loading ? "Verifying..." : "Verify & Sign In"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep("phone")}
+                    style={{ background: "transparent", border: "none", color: "#D4A84F", fontSize: "0.82rem", cursor: "pointer", textAlign: "center" }}
+                  >
+                    ← Change Phone Number
+                  </button>
+                </form>
+              )}
+
+              {/* Mode: Password */}
+              {mode === "password" && (
+                <form onSubmit={handlePasswordLogin} style={{ display: "grid", gap: "1rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Email or Mobile Number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="devotee@namhastro.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      className="form-input"
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} className="btn btn-purple" style={{ width: "100%", padding: "0.75rem", fontWeight: 600 }}>
+                    {loading ? "Authenticating..." : "Sign In with Password"}
+                  </button>
+                </form>
+              )}
+
+              {/* Mode: Register */}
+              {mode === "register" && (
+                <form onSubmit={handleRegister} style={{ display: "grid", gap: "1rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="e.g. Aarav Sharma"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      className="form-input"
+                      placeholder="you@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      placeholder="+91 98765 43210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBottom: "0.3rem" }}>
+                      Choose Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      className="form-input"
+                      placeholder="At least 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} className="btn btn-gold" style={{ width: "100%", padding: "0.75rem", fontWeight: 600 }}>
+                    {loading ? "Creating Account..." : "Create Devotee Account"}
+                  </button>
+                </form>
+              )}
+
+              {/* Quick Demo Login Option */}
+              <div style={{ marginTop: "1.5rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(0,0,0,0.08)", textAlign: "center" }}>
+                <span style={{ fontSize: "0.78rem", color: "#888", display: "block", marginBottom: "0.5rem" }}>
+                  Instant Verification for Testing:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleQuickDemo}
+                  className="btn btn-outline btn-sm"
+                  style={{ width: "100%", fontSize: "0.82rem" }}
+                >
+                  ⚡ One-Click Demo Devotee Login (+91 9988776655)
+                </button>
               </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-                  Your Name (Optional for first-time signups)
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Rameshwar Kumar"
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem 0.85rem",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid rgba(53, 16, 68, 0.2)",
-                    fontSize: "0.9rem",
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary"
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "var(--radius-sm)",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  cursor: loading ? "not-allowed" : "pointer",
-                }}
-              >
-                {loading ? "Verifying..." : "Verify & Sign In"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpSent(false);
-                  setOtp("");
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--color-gold)",
-                  fontSize: "0.82rem",
-                  cursor: "pointer",
-                  textAlign: "center",
-                }}
-              >
-                Change mobile number
-              </button>
-            </form>
-          )}
-        </>
-      )}
-
-      {/* MODE 2: PASSWORD AUTH */}
-      {mode === "PASSWORD" && (
-        <form onSubmit={handlePasswordLogin} style={{ display: "grid", gap: "1rem" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Email Address or Phone
-            </label>
-            <div style={{ position: "relative" }}>
-              <Mail size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
             </div>
           </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Password
-            </label>
-            <div style={{ position: "relative" }}>
-              <Lock size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-            style={{
-              padding: "0.75rem",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: 600,
-              fontSize: "0.95rem",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Signing in..." : "Sign In with Password"}
-          </button>
-        </form>
-      )}
-
-      {/* MODE 3: REGISTER */}
-      {mode === "REGISTER" && (
-        <form onSubmit={handleRegister} style={{ display: "grid", gap: "1rem" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Full Name *
-            </label>
-            <div style={{ position: "relative" }}>
-              <User size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Rameshwar Kumar"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Email Address *
-            </label>
-            <div style={{ position: "relative" }}>
-              <Mail size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Mobile Phone
-            </label>
-            <div style={{ position: "relative" }}>
-              <Phone size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 9876543210"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.35rem" }}>
-              Create Password (min 6 characters) *
-            </label>
-            <div style={{ position: "relative" }}>
-              <Lock size={18} color="var(--color-text-muted)" style={{ position: "absolute", left: "0.85rem", top: "50%", transform: "translateY(-50%)" }} />
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 0.85rem 0.75rem 2.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid rgba(53, 16, 68, 0.2)",
-                  fontSize: "0.95rem",
-                }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-            style={{
-              padding: "0.75rem",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: 600,
-              fontSize: "0.95rem",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Creating Account..." : "Claim ₹100 Bonus & Register"}
-          </button>
-        </form>
-      )}
-
-      {/* Security Note */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.4rem",
-          marginTop: "1.75rem",
-          fontSize: "0.8rem",
-          color: "var(--color-text-muted)",
-        }}
-      >
-        <ShieldCheck size={16} color="#16a34a" /> 256-Bit SSL Encrypted Â· 100% Confidential
-      </div>
-    </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
-      <SiteHeader />
-
-      <main style={{ flex: 1, paddingBlock: "3rem 4rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="container" style={{ maxWidth: "460px" }}>
-          <Suspense fallback={<div style={{ textAlign: "center", padding: "2rem" }}>Loading...</div>}>
-            <LoginForm />
-          </Suspense>
-        </div>
+        </section>
       </main>
-
       <SiteFooter />
-      <MobileBottomNav />
-    </div>
+    </>
   );
 }

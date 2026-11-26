@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { NamhAstroLogo } from "@/components/icons/ZodiacIcons";
 import {
@@ -166,9 +167,14 @@ export function AuthModal() {
             <X size={18} />
           </button>
 
-          <div style={{ display: "inline-block", marginBlockEnd: "0.5rem" }}>
+          <Link
+            href="/"
+            onClick={closeLoginModal}
+            style={{ display: "inline-block", marginBlockEnd: "0.5rem", textDecoration: "none" }}
+            aria-label="NAMH ASTRO Home"
+          >
             <NamhAstroLogo size={48} />
-          </div>
+          </Link>
           <h3
             className="serif-heading"
             style={{ color: "#FFFFFF", fontSize: "1.35rem", marginBlockEnd: "0.25rem" }}

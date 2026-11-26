@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
   BarChart3,
   Bell,
   Briefcase,
@@ -12,6 +14,7 @@ import {
   Check,
   CheckCircle2,
   CheckSquare,
+  ChevronRight,
   Clock,
   Cpu,
   CreditCard,
@@ -24,10 +27,12 @@ import {
   Flame,
   Globe,
   HelpCircle,
+  Home,
   IndianRupee,
   Key,
   LayoutDashboard,
   Megaphone,
+  Menu,
   PhoneCall,
   Plus,
   Power,
@@ -52,86 +57,8 @@ import { useAuth } from "@/context/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 
-// 36-Module Master Navigation Architecture grouped into Enterprise Categories
-export const ADMIN_GROUPS = [
-  {
-    name: "Executive & Growth",
-    modules: [
-      { id: "dashboard", label: "Master Business Overview", icon: LayoutDashboard, count: "Live" },
-      { id: "analytics", label: "Advanced Analytics & Growth", icon: BarChart3, count: "Metrics" },
-    ],
-  },
-  {
-    name: "Customer CRM & Sales",
-    modules: [
-      { id: "customer-crm", label: "Customer 360° Directory", icon: Users, count: "Devotees" },
-      { id: "sales-crm", label: "Sales Lead Pipeline", icon: CheckSquare, count: "CRM" },
-    ],
-  },
-  {
-    name: "Live Operations & Calling",
-    modules: [
-      { id: "live-operations", label: "Live Consultation Control", icon: Activity, count: "Active" },
-      { id: "consultations", label: "Consultation Queue & Logs", icon: Clock, count: "Agora" },
-      { id: "verification", label: "Astrologer KYC & Verification", icon: ShieldCheck, count: "KYC" },
-      { id: "online-astrologers", label: "Astrologer Directory & Rates", icon: UserCheck, count: "Partners" },
-      { id: "rate-changes", label: "Rate Change Requests", icon: DollarSign, count: "Requests" },
-    ],
-  },
-  {
-    name: "Spiritual Marketplace",
-    modules: [
-      { id: "puja-management", label: "Online Puja & Rituals", icon: Flame, count: "Pujas" },
-      { id: "store-management", label: "Astro Store & Inventory", icon: ShoppingBag, count: "Store" },
-    ],
-  },
-  {
-    name: "Finance, Ledger & Settlements",
-    modules: [
-      { id: "wallets", label: "Devotee Wallet Accounts", icon: Wallet, count: "Ledger" },
-      { id: "commission", label: "Dynamic Commission Rules", icon: FileCheck, count: "Rules" },
-      { id: "withdrawals", label: "Withdrawals & Payouts", icon: IndianRupee, count: "Payouts" },
-      { id: "settlements", label: "Settlement Batches", icon: CreditCard, count: "Batches" },
-      { id: "pnl", label: "P&L Ledger & Expenses", icon: FileBarChart, count: "P&L" },
-      { id: "reconciliation", label: "Three-Way Reconciliation", icon: RotateCcw, count: "Audit" },
-    ],
-  },
-  {
-    name: "Customer Support & Disputes",
-    modules: [
-      { id: "support-tickets", label: "Customer Support Helpdesk", icon: HelpCircle, count: "17 Queues" },
-      { id: "complaints-disputes", label: "Complaints & Dispute Resolution", icon: AlertCircle, count: "Refunds" },
-    ],
-  },
-  {
-    name: "Staff Management & RBAC",
-    modules: [
-      { id: "staff-management", label: "Enterprise Staff Directory", icon: Briefcase, count: "HR" },
-      { id: "departments", label: "Department Structure", icon: Building2, count: "9 Depts" },
-      { id: "roles-permissions", label: "Custom Roles & Permissions", icon: Key, count: "RBAC" },
-      { id: "department-tasks", label: "Department Tasks & Delegation", icon: CheckSquare, count: "Tasks" },
-    ],
-  },
-  {
-    name: "Content & Marketing CMS",
-    modules: [
-      { id: "marketing-management", label: "Referral & Coupon Engine", icon: Sparkles, count: "Growth" },
-      { id: "website-cms", label: "Website & Mobile App CMS", icon: Globe, count: "CMS" },
-      { id: "notifications", label: "Notification Templates & FCM", icon: Bell, count: "Alerts" },
-    ],
-  },
-  {
-    name: "System Diagnostics & Governance",
-    modules: [
-      { id: "system-health", label: "System Health Diagnostics", icon: Cpu, count: "Diagnostics" },
-      { id: "security-audit", label: "Security & Audit Controls", icon: ShieldAlert, count: "Audit" },
-      { id: "backup-recovery", label: "Backup & Recovery Strategy", icon: Database, count: "Backups" },
-      { id: "settings", label: "Global Platform Settings", icon: Settings, count: "Config" },
-    ],
-  },
-];
-
-export const ADMIN_MODULES = ADMIN_GROUPS.flatMap((g) => g.modules);
+import { ADMIN_GROUPS, ADMIN_MODULES } from "@/data/adminModules";
+export { ADMIN_GROUPS, ADMIN_MODULES };
 
 // High-Fidelity Default Fallback Data
 const DEMO_DASHBOARD_METRICS = {
@@ -260,18 +187,18 @@ const DEMO_HEALTH = {
   },
 };
 
-export default function SuperAdminDashboardPage() {
+function AdminDashboardInner({ initialTab }: { initialTab?: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, token } = useAuth();
-  const [activeId, setActiveId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam && ADMIN_MODULES.some((m) => m.id === tabParam)) {
-        return tabParam;
-      }
-    }
-    return "dashboard";
-  });
+
+  const tabQuery = searchParams?.get("tab");
+  const effectiveTab = initialTab || tabQuery || "dashboard";
+
+  const [activeId, setActiveId] = useState<string>(
+    ADMIN_MODULES.some((m) => m.id === effectiveTab) ? effectiveTab : "dashboard"
+  );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const [sidebarFilter, setSidebarFilter] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
@@ -406,13 +333,14 @@ export default function SuperAdminDashboardPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam && ADMIN_MODULES.some((m) => m.id === tabParam)) {
-        setActiveId(tabParam);
-      }
+    if (initialTab && ADMIN_MODULES.some((m) => m.id === initialTab)) {
+      setActiveId(initialTab);
+    } else if (tabQuery && ADMIN_MODULES.some((m) => m.id === tabQuery)) {
+      setActiveId(tabQuery);
     }
+  }, [initialTab, tabQuery]);
+
+  useEffect(() => {
     fetchEnterpriseData();
   }, [token]);
 
@@ -521,22 +449,23 @@ export default function SuperAdminDashboardPage() {
   };
 
   const activeModule = ADMIN_MODULES.find((m) => m.id === activeId) ?? ADMIN_MODULES[0];
+  const activeGroup = ADMIN_GROUPS.find((g) => g.modules.some((m) => m.id === activeId));
 
   return (
-    <div className="admin-shell" style={{ display: "flex", minHeight: "100vh", backgroundColor: "#FBF7F0" }}>
+    <div className="admin-shell">
+      {/* Mobile Drawer Backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="admin-drawer-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Enterprise Sidebar */}
       <aside
-        className="admin-sidebar"
+        className={`admin-sidebar ${mobileNavOpen ? "open" : ""}`}
         aria-label="Super Admin Navigation"
-        style={{
-          width: "285px",
-          backgroundColor: "var(--royal-purple, #351044)",
-          color: "#FFFFFF",
-          display: "flex",
-          flexDirection: "column",
-          flexShrink: 0,
-          borderRight: "1px solid rgba(212,168,79,0.25)",
-        }}
       >
         {/* Brand Header */}
         <div
@@ -548,7 +477,11 @@ export default function SuperAdminDashboardPage() {
             justifyContent: "space-between",
           }}
         >
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.65rem", textDecoration: "none" }}>
+          <Link
+            href="/"
+            style={{ display: "flex", alignItems: "center", gap: "0.65rem", textDecoration: "none", cursor: "pointer" }}
+            title="Return to NAMH ASTRO Customer Home"
+          >
             <NamhAstroLogo size={36} />
             <div>
               <strong
@@ -567,6 +500,14 @@ export default function SuperAdminDashboardPage() {
               </span>
             </div>
           </Link>
+          <button
+            type="button"
+            className="mobile-close-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={18} color="#FFFFFF" />
+          </button>
         </div>
 
         {/* Quick Module Filter Input */}
@@ -634,10 +575,13 @@ export default function SuperAdminDashboardPage() {
                     const Icon = m.icon;
                     const isActive = activeId === m.id;
                     return (
-                      <button
+                      <Link
                         key={m.id}
-                        type="button"
-                        onClick={() => setActiveId(m.id)}
+                        href={`/admin/${m.id}`}
+                        onClick={() => {
+                          setActiveId(m.id);
+                          setMobileNavOpen(false);
+                        }}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -645,6 +589,7 @@ export default function SuperAdminDashboardPage() {
                           padding: "0.45rem 0.65rem",
                           borderRadius: "6px",
                           border: "none",
+                          textDecoration: "none",
                           cursor: "pointer",
                           backgroundColor: isActive ? "rgba(212, 168, 79, 0.22)" : "transparent",
                           color: isActive ? "#F2C96B" : "rgba(255,255,255,0.85)",
@@ -671,7 +616,7 @@ export default function SuperAdminDashboardPage() {
                         >
                           {m.count}
                         </span>
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
@@ -694,7 +639,7 @@ export default function SuperAdminDashboardPage() {
         >
           <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10B981" }} />
-            Production V1.0 Active
+            Step 11 Active
           </span>
           <span style={{ color: "#F2C96B" }}>MariaDB · Agora · RZP</span>
         </div>
@@ -702,6 +647,114 @@ export default function SuperAdminDashboardPage() {
 
       {/* Main Administrative Control Workspace */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
+        {/* Universal Top Navigation & Back Bar */}
+        <div
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderBottom: "1px solid rgba(212,168,79,0.25)",
+            padding: "0.55rem 1.25rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+            position: "sticky",
+            top: 0,
+            zIndex: 60,
+          }}
+        >
+          {/* Left: Mobile Hamburger + Storefront Home Link + Universal Back + Breadcrumbs */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="admin-hamburger-btn"
+              aria-label="Toggle navigation drawer"
+            >
+              <Menu size={16} />
+              <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>Modules</span>
+            </button>
+
+            <Link
+              href="/"
+              className="btn btn-gold btn-sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: "0.82rem",
+              }}
+              title="Return to NAMH ASTRO Customer Home"
+            >
+              <Home size={14} /> ← Back to Home
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="btn btn-outline btn-sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                fontSize: "0.82rem",
+              }}
+              title="Go back to previous screen"
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
+
+            {/* Breadcrumb Path */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.82rem", color: "#666" }}>
+              <Link href="/admin/dashboard" style={{ color: "#351044", fontWeight: 600, textDecoration: "none" }}>
+                Admin
+              </Link>
+              {activeGroup && (
+                <>
+                  <ChevronRight size={13} color="#D4A84F" />
+                  <span style={{ color: "#888" }}>{activeGroup.name}</span>
+                </>
+              )}
+              <ChevronRight size={13} color="#D4A84F" />
+              <span style={{ color: "#D4A84F", fontWeight: 600 }}>{activeModule.label}</span>
+            </div>
+          </div>
+
+          {/* Right: Quick Module Switchers */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+            <Link
+              href="/admin/dashboard"
+              className={`btn btn-sm ${activeId === "dashboard" ? "btn-purple" : "btn-outline"}`}
+              style={{ textDecoration: "none", fontSize: "0.78rem", padding: "0.25rem 0.65rem" }}
+            >
+              Overview
+            </Link>
+            <Link
+              href="/admin/customer-crm"
+              className={`btn btn-sm ${activeId === "customer-crm" ? "btn-purple" : "btn-outline"}`}
+              style={{ textDecoration: "none", fontSize: "0.78rem", padding: "0.25rem 0.65rem" }}
+            >
+              Devotees
+            </Link>
+            <Link
+              href="/admin/wallets"
+              className={`btn btn-sm ${activeId === "wallets" ? "btn-purple" : "btn-outline"}`}
+              style={{ textDecoration: "none", fontSize: "0.78rem", padding: "0.25rem 0.65rem" }}
+            >
+              Wallets
+            </Link>
+            <Link
+              href="/admin/live-operations"
+              className={`btn btn-sm ${activeId === "live-operations" ? "btn-purple" : "btn-outline"}`}
+              style={{ textDecoration: "none", fontSize: "0.78rem", padding: "0.25rem 0.65rem" }}
+            >
+              Live Agora
+            </Link>
+          </div>
+        </div>
+
         {/* Top Universal Header */}
         <header
           style={{
@@ -713,8 +766,6 @@ export default function SuperAdminDashboardPage() {
             justifyContent: "space-between",
             alignItems: "center",
             gap: "1rem",
-            position: "sticky",
-            top: 0,
             zIndex: 50,
           }}
         >
@@ -728,7 +779,7 @@ export default function SuperAdminDashboardPage() {
                 letterSpacing: "0.06em",
               }}
             >
-              Enterprise Business Control Center · Production V1.0
+              Enterprise Business Control Center · Verified Step 11
             </span>
             <h1
               className="serif-heading"
@@ -2140,5 +2191,24 @@ export default function SuperAdminDashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SuperAdminDashboardPage({ initialTab }: { initialTab?: string }) {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: "100vh", backgroundColor: "#FBF7F0", display: "grid", placeItems: "center" }}>
+          <div style={{ textAlign: "center", color: "#351044" }}>
+            <NamhAstroLogo size={48} />
+            <div style={{ marginTop: "1rem", fontWeight: 600, fontFamily: "var(--font-serif, serif)" }}>
+              Loading Super Admin Workspace...
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AdminDashboardInner initialTab={initialTab} />
+    </Suspense>
   );
 }

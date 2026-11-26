@@ -1,319 +1,166 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Award,
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  Compass,
-  HeartHandshake,
-  Lock,
-  MessageCircle,
-  PhoneCall,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Users,
-  Video,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, CheckCircle2, ChevronRight, Globe, HeartHandshake, Lock, ShieldCheck, Sparkles, Star, Users } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
-import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
-export default function AboutPage() {
+const PILLARS = [
+  {
+    icon: ShieldCheck,
+    title: "100% Verified Vedic Astrologers",
+    desc: "Every practitioner undergoes rigorous four-stage screening: Vedic credential validation, Shastric knowledge viva with senior Acharyas, audio/video consultation test calls, and government identity background verification.",
+  },
+  {
+    icon: Lock,
+    title: "Sacred Privacy & Anonymity",
+    desc: "Your personal details, birth charts, chat transcripts, and audio/video consultations remain strictly confidential. Devotee phone numbers are never shared with astrologers, protected by dual-sided Agora WebRTC tokenization.",
+  },
+  {
+    icon: Award,
+    title: "Server-Controlled Honest Billing",
+    desc: "No hidden charges or surprise minimums. Our automated real-time financial ledger meters consultations per minute with instant balance reservation and automatic release upon session termination.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "Consecrated Spiritual Marketplace",
+    desc: "From temple-sanctified Online Pujas performed by authorized Vedic Pandits with live video sankalps to 100% government-certified lab-tested gemstones and authentic Rudraksha beads.",
+  },
+];
+
+const MILESTONES = [
+  { metric: "50,000+", label: "Devotees Served Across India & Worldwide" },
+  { metric: "150+", label: "Verified Vedic Astrologers & Acharyas" },
+  { metric: "4.92 / 5", label: "Average Consultation Satisfaction Rating" },
+  { metric: "100%", label: "Satisfaction & Honest Refund Guarantee" },
+];
+
+export default function AboutUsPage() {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
+    <>
       <SiteHeader />
-
-      <main style={{ flex: 1, paddingBlock: "2.5rem 4rem" }}>
-        <div className="container" style={{ maxWidth: "1140px" }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)", marginBlockEnd: "1.5rem" }}>
-            <Link href="/" style={{ color: "var(--color-gold)", textDecoration: "none" }}>Home</Link>
-            <span>/</span>
-            <span>About NAMH ASTRO</span>
-          </div>
-
-          {/* Hero Section */}
-          <div
-            style={{
-              background: "linear-gradient(135deg, #351044 0%, #240B32 100%)",
-              borderRadius: "var(--radius-lg)",
-              padding: "3.5rem 2rem",
-              textAlign: "center",
-              color: "#FFFFFF",
-              border: "1px solid rgba(212, 168, 79, 0.35)",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-              marginBlockEnd: "3.5rem",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.4rem 1rem",
-                borderRadius: "999px",
-                background: "rgba(212, 168, 79, 0.15)",
-                border: "1px solid rgba(212, 168, 79, 0.4)",
-                color: "#F2C96B",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                marginBlockEnd: "1.25rem",
-              }}
+      <main style={{ minHeight: "80vh", backgroundColor: "#FDFBF7", paddingBottom: "4rem" }}>
+        {/* Navigation Breadcrumb & Back Bar */}
+        <div style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid rgba(212,168,79,0.25)", padding: "0.85rem 0" }}>
+          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#666" }}>
+              <Link href="/" style={{ color: "#351044", fontWeight: 600, textDecoration: "none" }}>Home</Link>
+              <ChevronRight size={14} color="#D4A84F" />
+              <span style={{ color: "#D4A84F", fontWeight: 600 }}>About Us</span>
+            </div>
+            <Link
+              href="/"
+              className="btn btn-outline btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
             >
-              <Sparkles size={16} /> Authentic Vedic Heritage
-            </div>
-
-            <h1
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "clamp(2rem, 4vw, 3rem)",
-                fontWeight: 700,
-                color: "#FFFFFF",
-                marginBlockEnd: "1rem",
-                lineHeight: 1.2,
-              }}
-            >
-              Bridging Sacred Wisdom With <span style={{ color: "#F2C96B" }}>Modern Technology</span>
-            </h1>
-
-            <p
-              style={{
-                maxWidth: "750px",
-                marginInline: "auto",
-                fontSize: "1.05rem",
-                color: "rgba(255, 255, 255, 0.88)",
-                lineHeight: 1.6,
-                marginBlockEnd: "2rem",
-              }}
-            >
-              NAMH ASTRO is India&apos;s premier spiritual and astrological marketplace. We empower millions of seekers
-              worldwide to navigate life&apos;s most vital decisions through verified Vedic scholars, state-of-the-art
-              real-time consultations, and genuine spiritual remedies.
-            </p>
-
-            {/* Quick Stats Grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: "1.5rem",
-                maxWidth: "900px",
-                marginInline: "auto",
-                borderTop: "1px solid rgba(212, 168, 79, 0.25)",
-                paddingTop: "2rem",
-              }}
-            >
-              <div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", fontWeight: 700, color: "#F2C96B" }}>500+</div>
-                <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>Verified Astrologers</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", fontWeight: 700, color: "#F2C96B" }}>1,00,000+</div>
-                <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>Consultations Completed</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", fontWeight: 700, color: "#F2C96B" }}>4.9 / 5.0</div>
-                <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>Average Devotee Rating</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", fontWeight: 700, color: "#F2C96B" }}>100%</div>
-                <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)" }}>Confidential &amp; Secure</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Our Core Pillars */}
-          <div style={{ marginBlockEnd: "3.5rem" }}>
-            <div style={{ textAlign: "center", marginBlockEnd: "2.5rem" }}>
-              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", fontWeight: 700, color: "var(--color-primary)", marginBlockEnd: "0.5rem" }}>
-                Why Devotees Trust NAMH ASTRO
-              </h2>
-              <p style={{ color: "var(--color-text-muted)", fontSize: "0.95rem" }}>
-                Our 4 foundational commitments to authentic guidance and technology excellence
-              </p>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem" }}>
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  padding: "1.75rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid rgba(212, 168, 79, 0.2)",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044", marginBlockEnd: "1rem" }}>
-                  <ShieldCheck size={26} />
-                </div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  Strict 4-Tier Astrologer Vetting
-                </h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  Every astrologer undergoes government ID verification, Vedic academic credential checks, multiple technical interviews with senior Acharyas, and ongoing quality audits.
-                </p>
-              </div>
-
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  padding: "1.75rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid rgba(212, 168, 79, 0.2)",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044", marginBlockEnd: "1rem" }}>
-                  <Lock size={26} />
-                </div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  100% Privacy &amp; Anonymity
-                </h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  Your phone number, chat transcripts, and personal questions remain strictly encrypted. Astrologers never see your contact details or phone number.
-                </p>
-              </div>
-
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  padding: "1.75rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid rgba(212, 168, 79, 0.2)",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044", marginBlockEnd: "1rem" }}>
-                  <Clock size={26} />
-                </div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  Server-Controlled Billing
-                </h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  Billing is tracked by our verified enterprise financial ledger to the millisecond. No hidden fees, no unauthorized deductions, and instant automatic refunds if disconnected.
-                </p>
-              </div>
-
-              <div
-                style={{
-                  background: "#FFFFFF",
-                  padding: "1.75rem",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid rgba(212, 168, 79, 0.2)",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(53, 16, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#351044", marginBlockEnd: "1rem" }}>
-                  <Award size={26} />
-                </div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#351044", marginBlockEnd: "0.5rem" }}>
-                  Lab-Certified Products &amp; Pujas
-                </h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  All Astro Store rudrakshas, yantras, and gemstones include government-recognized lab certificates. Online Pujas are performed live at sacred kshetras by verified Vedic Pandits.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Mission & Vision */}
-          <div
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "var(--radius-lg)",
-              padding: "2.5rem",
-              border: "1px solid rgba(212, 168, 79, 0.2)",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "2.5rem",
-              marginBlockEnd: "3.5rem",
-            }}
-          >
-            <div>
-              <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "1.5rem", color: "#351044", marginBlockEnd: "1rem" }}>
-                Our Sacred Mission
-              </h3>
-              <p style={{ color: "var(--color-text-muted)", lineHeight: 1.6, fontSize: "0.95rem" }}>
-                To preserve and celebrate the timeless wisdom of Brihat Parashara Hora Shastra, Jaimini Sutras,
-                and Vedic astronomy by connecting discerning seekers with upright, erudite practitioners. We eliminate
-                superstition and extortion through transparent pricing, verified credentials, and compassionate guidance.
-              </p>
-            </div>
-            <div>
-              <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "1.5rem", color: "#351044", marginBlockEnd: "1rem" }}>
-                Our Technology Vision
-              </h3>
-              <p style={{ color: "var(--color-text-muted)", lineHeight: 1.6, fontSize: "0.95rem" }}>
-                Powered by high-definition Agora audio &amp; video calling, real-time WebSocket messaging, an exact
-                astronomy calculation engine with Chitrapaksha (Lahiri) Ayanamsha, and double-entry financial ledgering,
-                NAMH ASTRO delivers an uncompromised spiritual experience anytime, anywhere.
-              </p>
-            </div>
-          </div>
-
-          {/* Action Callout */}
-          <div
-            style={{
-              textAlign: "center",
-              padding: "2.5rem",
-              borderRadius: "var(--radius-md)",
-              background: "linear-gradient(135deg, rgba(53, 16, 68, 0.05) 0%, rgba(212, 168, 79, 0.1) 100%)",
-              border: "1px solid rgba(212, 168, 79, 0.3)",
-            }}
-          >
-            <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "#351044", marginBlockEnd: "0.75rem" }}>
-              Ready to Seek Vedic Clarity?
-            </h3>
-            <p style={{ color: "var(--color-text-muted)", maxWidth: "550px", marginInline: "auto", marginBlockEnd: "1.5rem" }}>
-              Connect with top Vedic astrologers right now via private chat, audio call, or video consultation.
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap" }}>
-              <Link
-                href="/astrologers?mode=chat"
-                className="btn-primary"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.75rem 1.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
-              >
-                <MessageCircle size={18} /> Chat with Astrologer
-              </Link>
-              <Link
-                href="/kundli"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.75rem 1.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  background: "#FFFFFF",
-                  border: "1px solid rgba(212, 168, 79, 0.5)",
-                  color: "#351044",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
-              >
-                <Compass size={18} /> Free Janam Kundli
-              </Link>
-            </div>
+              <ArrowLeft size={14} /> Back to Home
+            </Link>
           </div>
         </div>
-      </main>
 
+        {/* Hero Section */}
+        <section style={{ background: "linear-gradient(135deg, #351044 0%, #240B32 100%)", color: "#FFFFFF", padding: "3rem 0" }}>
+          <div className="container" style={{ textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.85rem", borderRadius: "9999px", backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(212,168,79,0.5)", color: "#F8D677", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.85rem" }}>
+              <Sparkles size={14} /> Sacred Vedic Heritage &amp; Modern Technology
+            </span>
+            <h1 className="serif-heading" style={{ fontSize: "clamp(1.9rem, 3vw, 2.8rem)", color: "#FFFFFF", marginBottom: "0.85rem" }}>
+              About NAMH ASTRO
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.88)", fontSize: "1rem", lineHeight: 1.7 }}>
+              Bridging the timeless wisdom of Maharishi Parashara, Jaimini, and Varahamihira with modern real-time WebRTC technology. We connect seekers with authentic Vedic masters for clarity, solace, and spiritual elevation.
+            </p>
+          </div>
+        </section>
+
+        {/* Core Mission Section */}
+        <section className="container" style={{ marginTop: "3rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "2.5rem", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: "0.8rem", color: "#D4A84F", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Our Sacred Purpose
+              </span>
+              <h2 style={{ fontSize: "2rem", color: "#351044", margin: "0.4rem 0 1rem", fontFamily: "var(--font-serif, serif)", lineHeight: 1.3 }}>
+                Restoring Purity &amp; Reverence to Vedic Astrology
+              </h2>
+              <p style={{ color: "#555", fontSize: "0.95rem", lineHeight: 1.7, marginBottom: "1rem" }}>
+                Vedic Astrology (Jyotish) is the eye of the Vedas — a sacred spiritual science intended to guide human consciousness through the karmic crossroads of life. Too often, modern commercial platforms have reduced this profound wisdom to transactional gimmicks and fear-based predictions.
+              </p>
+              <p style={{ color: "#555", fontSize: "0.95rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
+                At <strong>NAMH ASTRO</strong>, we stand for authenticity, empathy, and strict ethical standards. Our astrologers do not sell fear; they provide clarity, classical Vedic remedial paths, and spiritual encouragement that empower you to fulfill your highest Dharma.
+              </p>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <Link href="/astrologers" className="btn btn-gold">
+                  Explore Astrologers <ArrowRight size={16} />
+                </Link>
+                <Link href="/partner" className="btn btn-outline">
+                  Join as Astrologer Partner
+                </Link>
+              </div>
+            </div>
+
+            {/* Platform Milestones */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              {MILESTONES.map((m) => (
+                <div key={m.label} className="surface-card" style={{ padding: "1.5rem", textAlign: "center", backgroundColor: "#FFF9F0", borderColor: "rgba(212,168,79,0.3)" }}>
+                  <div style={{ fontSize: "1.8rem", fontWeight: 700, color: "#351044", fontFamily: "var(--font-serif, serif)", marginBottom: "0.3rem" }}>
+                    {m.metric}
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "#666", lineHeight: 1.4 }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 4 Pillars Grid */}
+        <section className="container" style={{ marginTop: "4rem" }}>
+          <div style={{ textAlign: "center", maxWidth: "700px", margin: "0 auto 2.5rem" }}>
+            <span style={{ fontSize: "0.8rem", color: "#D4A84F", fontWeight: 700, textTransform: "uppercase" }}>Our Guiding Principles</span>
+            <h2 style={{ fontSize: "1.85rem", color: "#351044", margin: "0.3rem 0 0.75rem", fontFamily: "var(--font-serif, serif)" }}>
+              Why Thousands of Devotees Trust NAMH ASTRO
+            </h2>
+            <p style={{ color: "#666", fontSize: "0.92rem" }}>
+              Uncompromising dedication to authenticity, privacy, and verifiable results across every consultation and sacred offering.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.5rem" }}>
+            {PILLARS.map((p) => {
+              const Icon = p.icon;
+              return (
+                <div key={p.title} className="surface-card" style={{ padding: "1.75rem", backgroundColor: "#FFFFFF" }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "8px", backgroundColor: "#FFF9F0", border: "1px solid rgba(212,168,79,0.4)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>
+                    <Icon size={22} color="#D4A84F" />
+                  </div>
+                  <h3 style={{ fontSize: "1.1rem", color: "#351044", marginBottom: "0.5rem", fontFamily: "var(--font-serif, serif)" }}>
+                    {p.title}
+                  </h3>
+                  <p style={{ fontSize: "0.86rem", color: "#666", lineHeight: 1.6, margin: 0 }}>
+                    {p.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Closing Banner */}
+        <section className="container" style={{ marginTop: "4rem" }}>
+          <div style={{ background: "linear-gradient(135deg, #351044 0%, #240B32 100%)", borderRadius: "14px", padding: "2.5rem 2rem", textAlign: "center", color: "#FFFFFF" }}>
+            <h3 style={{ fontSize: "1.6rem", color: "#FFFFFF", marginBottom: "0.5rem", fontFamily: "var(--font-serif, serif)" }}>
+              Experience the Wisdom of Authentic Jyotish
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.95rem", maxWidth: "600px", margin: "0 auto 1.5rem" }}>
+              Get answers to questions about career, marriage compatibility, health, and spiritual path with our verified Acharyas today.
+            </p>
+            <Link href="/astrologers" className="btn btn-gold" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+              Start First Consultation <ArrowRight size={16} />
+            </Link>
+          </div>
+        </section>
+      </main>
       <SiteFooter />
-      <MobileBottomNav />
-    </div>
+    </>
   );
 }
