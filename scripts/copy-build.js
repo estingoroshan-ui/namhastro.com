@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 try {
+  console.log('[NAMH ASTRO] Starting comprehensive build distribution...');
+
   // 1. Copy .next directory
   if (fs.existsSync('apps/web/.next')) {
     fs.cpSync('apps/web/.next', '.next', { recursive: true });
@@ -17,7 +19,6 @@ try {
   // 3. Copy public assets
   if (fs.existsSync('apps/web/public')) {
     fs.cpSync('apps/web/public', 'public', { recursive: true });
-    console.log('[NAMH ASTRO] Copied apps/web/public to public in root');
   }
 
   if (fs.existsSync('apps/web/public/images')) {
@@ -25,43 +26,74 @@ try {
     console.log('[NAMH ASTRO] Copied apps/web/public/images to images in root');
   }
 
-  // 4. Copy index.html and all pre-rendered pages to root for Apache / Hostinger
+  // 4. Distribute all pre-rendered HTML and RSC payloads from server/app
   const serverAppDir = path.resolve('apps/web/.next/server/app');
   if (fs.existsSync(serverAppDir)) {
-    // Root index.html
+    // Root index.html and index.rsc
     const rootIndex = path.join(serverAppDir, 'index.html');
     if (fs.existsSync(rootIndex)) {
       fs.copyFileSync(rootIndex, 'index.html');
-      console.log('[NAMH ASTRO] Created root index.html from pre-rendered static page');
+      console.log('[NAMH ASTRO] Created root index.html');
+    }
+    const rootRsc = path.join(serverAppDir, 'index.rsc');
+    if (fs.existsSync(rootRsc)) {
+      fs.copyFileSync(rootRsc, 'index.rsc');
+      console.log('[NAMH ASTRO] Created root index.rsc');
     }
 
-    // Function to recursively find all .html files and copy as <route>/index.html
-    function copyHtmlFiles(dir, relativeDir = '') {
+    // Recursively copy all files (.html, .rsc, etc.)
+    function distributeFiles(dir, relativeDir = '') {
       const items = fs.readdirSync(dir, { withFileTypes: true });
       for (const item of items) {
+        const fullSource = path.join(dir, item.name);
+        const relPath = path.join(relativeDir, item.name);
+
         if (item.isDirectory()) {
-          copyHtmlFiles(path.join(dir, item.name), path.join(relativeDir, item.name));
-        } else if (item.isFile() && item.name.endsWith('.html')) {
-          if (item.name === 'index.html' && relativeDir === '') {
-            continue; // Handled as root index.html
-          }
-          if (item.name.startsWith('_')) {
-            continue; // Skip Next.js internal pages like _not-found.html
+          distributeFiles(fullSource, relPath);
+        } else if (item.isFile()) {
+          // 1. Copy all .rsc files to their mirror paths and root
+          if (item.name.endsWith('.rsc')) {
+            const targetRscDir = relativeDir ? path.resolve(relativeDir) : path.resolve('.');
+            fs.mkdirSync(targetRscDir, { recursive: true });
+            fs.copyFileSync(fullSource, path.join(targetRscDir, item.name));
+
+            // Also copy top-level route .rsc to root if in immediate subdir
+            if (relativeDir && !relativeDir.includes(path.sep) && item.name === 'page.rsc') {
+              fs.copyFileSync(fullSource, `${relativeDir}.rsc`);
+            }
           }
 
-          const baseRouteName = item.name.replace(/\.html$/, '');
-          const targetDir = path.join(relativeDir, baseRouteName);
-          const targetFilePath = path.join(targetDir, 'index.html');
+          // 2. Copy all .html files
+          if (item.name.endsWith('.html')) {
+            if (item.name === 'index.html' && relativeDir === '') continue;
+            if (item.name.startsWith('_')) {
+              // Internal files like _not-found.html
+              fs.copyFileSync(fullSource, item.name);
+              continue;
+            }
 
-          fs.mkdirSync(targetDir, { recursive: true });
-          fs.copyFileSync(path.join(dir, item.name), targetFilePath);
-          console.log(`[NAMH ASTRO] Created ${targetDir}/index.html`);
+            const baseRouteName = item.name.replace(/\.html$/, '');
+
+            // Create <route>/index.html
+            const targetDir = path.join(relativeDir, baseRouteName);
+            fs.mkdirSync(targetDir, { recursive: true });
+            fs.copyFileSync(fullSource, path.join(targetDir, 'index.html'));
+
+            // Also copy as <route>.html in root or parent
+            if (relativeDir === '') {
+              fs.copyFileSync(fullSource, `${baseRouteName}.html`);
+            } else {
+              const directPath = path.join(relativeDir, item.name);
+              fs.copyFileSync(fullSource, directPath);
+            }
+          }
         }
       }
     }
 
-    copyHtmlFiles(serverAppDir);
+    distributeFiles(serverAppDir);
+    console.log('[NAMH ASTRO] Distributed all HTML routes and RSC payloads successfully');
   }
 } catch (err) {
-  console.warn('[NAMH ASTRO] Note on build copy:', err?.message || err);
+  console.error('[NAMH ASTRO] Error during build copy:', err);
 }

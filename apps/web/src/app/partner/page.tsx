@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import {
+  ArrowLeft,
   BadgeCheck,
   Calendar,
   Check,
   Clock,
+  Home,
   IndianRupee,
   MessageCircle,
   PhoneCall,
@@ -737,6 +739,26 @@ export default function AstrologerPartnerPage() {
       <SiteHeader />
       <main className="mp-section" style={{ paddingBlock: "1.25rem 5.5rem" }}>
         <div className="container" style={{ maxInlineSize: "72rem" }}>
+          {/* Universal Back Navigation & Portal Bar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+            <Link
+              href="/"
+              className="btn btn-outline btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", textDecoration: "none", fontSize: "0.82rem" }}
+              title="Return to NAMH ASTRO Customer Home"
+            >
+              <Home size={14} /> ← Back to Home
+            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem" }}>
+              <span style={{ color: "var(--ink-muted)" }}>Astrologer Portal · Switch:</span>
+              <Link href="/admin" className="btn btn-sm btn-purple" style={{ textDecoration: "none", fontSize: "0.76rem", padding: "0.2rem 0.55rem" }}>
+                Super Admin
+              </Link>
+              <Link href="/account" className="btn btn-sm btn-outline" style={{ textDecoration: "none", fontSize: "0.76rem", padding: "0.2rem 0.55rem" }}>
+                Devotee Dashboard
+              </Link>
+            </div>
+          </div>
           {/* Notifications / Alerts */}
           {successMsg ? (
             <div style={{ padding: "0.85rem 1.25rem", borderRadius: "var(--radius-sm)", backgroundColor: "rgba(22,163,74,0.12)", border: "1px solid #16A34A", color: "#16A34A", marginBlockEnd: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>

@@ -57,7 +57,7 @@ export function SiteFooter() {
               <li><Link href="/astrologers?mode=video">Video Consultation</Link></li>
               <li><Link href="/consultation/chat">Live Chat Room</Link></li>
               <li><Link href="/consultation/call">Audio &amp; Video Room</Link></li>
-              <li><Link href="/#live-astrologers">Live Astrologer Sessions</Link></li>
+              <li><Link href="/astrologers?filter=online">Live Astrologer Directory</Link></li>
             </ul>
           </div>
 
@@ -66,12 +66,12 @@ export function SiteFooter() {
               Vedic Services
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/#free-kundli">Free Janam Kundli</Link></li>
-              <li><Link href="/#kundli-matching">Kundli Matching (Guna Milan)</Link></li>
-              <li><Link href="/#daily-horoscope">Daily Horoscope</Link></li>
-              <li><Link href="/#panchang">Today&apos;s Panchang &amp; Muhurat</Link></li>
-              <li><Link href="/#puja-booking">Online Puja Booking</Link></li>
-              <li><Link href="/#astro-store">NAMH Astro Store</Link></li>
+              <li><Link href="/kundli">Free Janam Kundli</Link></li>
+              <li><Link href="/kundli?tab=matching">Kundli Matching (Guna Milan)</Link></li>
+              <li><Link href="/horoscope">Daily Horoscope</Link></li>
+              <li><Link href="/panchang">Today&apos;s Panchang &amp; Muhurat</Link></li>
+              <li><Link href="/puja">Online Puja Booking</Link></li>
+              <li><Link href="/store">NAMH Astro Store</Link></li>
             </ul>
           </div>
 
@@ -80,11 +80,12 @@ export function SiteFooter() {
               Portals &amp; Account
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/account">Customer Dashboard</Link></li>
+              <li><Link href="/account">Customer Devotee Dashboard</Link></li>
               <li><Link href="/account/wallet">My Wallet &amp; Recharge</Link></li>
-              <li><Link href="/partner">Astrologer Partner Dashboard</Link></li>
-              <li><Link href="/admin">Super Admin Dashboard</Link></li>
-              <li><Link href="/#download-app">Download Android &amp; iOS App</Link></li>
+              <li><Link href="/partner">Astrologer Partner Console</Link></li>
+              <li><Link href="/admin">Super Admin Workspace (36 Modules)</Link></li>
+              <li><Link href="/about">About NAMH ASTRO</Link></li>
+              <li><Link href="/contact">Contact Support &amp; Care</Link></li>
             </ul>
           </div>
 
@@ -93,11 +94,10 @@ export function SiteFooter() {
               Trust &amp; Policies
             </h3>
             <ul style={{ display: "grid", gap: "0.5rem", fontSize: "0.84rem" }}>
-              <li><Link href="/#how-it-works">How NAMH ASTRO Works</Link></li>
-              <li><Link href="/#reviews">Verified Customer Reviews</Link></li>
-              <li><Link href="/account">Privacy &amp; Data Protection</Link></li>
-              <li><Link href="/account/wallet">Refund &amp; Billing Policy</Link></li>
-              <li><Link href="/account">Terms of Service</Link></li>
+              <li><Link href="/faq">Frequently Asked Questions (FAQ)</Link></li>
+              <li><Link href="/privacy">Privacy &amp; Data Protection</Link></li>
+              <li><Link href="/refund-policy">Refund &amp; Cancellation Policy</Link></li>
+              <li><Link href="/terms">Terms of Service</Link></li>
             </ul>
           </div>
         </div>

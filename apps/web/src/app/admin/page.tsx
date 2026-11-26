@@ -894,8 +894,14 @@ function AdminDashboardInner({ initialTab }: { initialTab?: string }) {
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
 
-            <Link href="/" className="btn btn-purple btn-sm">
-              Devotee Storefront
+            <Link href="/partner" className="btn btn-gold btn-sm" style={{ textDecoration: "none" }} title="Switch to Astrologer Partner Console">
+              Partner Console
+            </Link>
+            <Link href="/account" className="btn btn-outline btn-sm" style={{ textDecoration: "none" }} title="Switch to Devotee Dashboard">
+              Devotee Portal
+            </Link>
+            <Link href="/" className="btn btn-purple btn-sm" style={{ textDecoration: "none" }} title="Return to NAMH ASTRO Customer Home">
+              ← Return Home
             </Link>
           </div>
         </header>

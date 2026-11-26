@@ -9,6 +9,7 @@ import {
   Flame,
   Gift,
   HelpCircle,
+  Home,
   LogOut,
   MapPin,
   MessageCircle,
@@ -228,6 +229,25 @@ export default function CustomerDashboardPage() {
   return (
     <>
       <SiteHeader />
+      <div className="container" style={{ paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+        <Link
+          href="/"
+          className="btn btn-outline btn-sm"
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", textDecoration: "none", fontSize: "0.82rem" }}
+          title="Return to NAMH ASTRO Customer Home"
+        >
+          <Home size={14} /> ← Back to Home
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem" }}>
+          <span style={{ color: "var(--ink-muted)" }}>Devotee Dashboard · Switch:</span>
+          <Link href="/admin" className="btn btn-sm btn-purple" style={{ textDecoration: "none", fontSize: "0.76rem", padding: "0.2rem 0.55rem" }}>
+            Super Admin
+          </Link>
+          <Link href="/partner" className="btn btn-sm btn-gold" style={{ textDecoration: "none", fontSize: "0.76rem", padding: "0.2rem 0.55rem" }}>
+            Astrologer Portal
+          </Link>
+        </div>
+      </div>
       <main className="container dash-shell">
         {/* Desktop Sidebar / Mobile Menu Strip */}
         <aside className="dash-sidebar" aria-label="Customer Account Navigation">

@@ -8,7 +8,7 @@ const TABS = [
   { id: "home", label: "Home", href: "/", icon: Home },
   { id: "chat", label: "Chat", href: "/consultation/chat", icon: MessageCircle },
   { id: "call", label: "Call", href: "/consultation/call", icon: PhoneCall },
-  { id: "live", label: "Live", href: "/#live-astrologers", icon: Radio },
+  { id: "live", label: "Live", href: "/astrologers?filter=online", icon: Radio },
   { id: "profile", label: "Profile", href: "/account", icon: User },
 ];
 

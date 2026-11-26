@@ -45,14 +45,14 @@ import {
 } from "@/data/marketplace";
 
 const SERVICE_CATEGORIES = [
-  { title: "Free Kundli", subtitle: "Generate Now", href: "/#free-kundli", icon: LayoutGrid, featured: true },
-  { title: "Kundli Matching", subtitle: "For Marriage", href: "/#kundli-matching", icon: HeartHandshake },
-  { title: "Daily Horoscope", subtitle: "12 Zodiac Signs", href: "/#daily-horoscope", icon: Sun },
-  { title: "Puja Booking", subtitle: "Online & Temple", href: "/#puja-booking", icon: Flame },
-  { title: "Live Astrologers", subtitle: "Talk Now", href: "/#live-astrologers", icon: Radio },
-  { title: "Astro Store", subtitle: "Gems & Rudraksha", href: "/#astro-store", icon: Gem },
-  { title: "Vastu Consultation", subtitle: "Home & Office", href: "/astrologers?speciality=Vastu+Shastra", icon: Compass },
-  { title: "Numerology", subtitle: "Name & Number", href: "/astrologers?speciality=Numerology", icon: Hash },
+  { title: "Free Kundli", subtitle: "Generate Now", href: "/kundli", icon: LayoutGrid, featured: true },
+  { title: "Kundli Matching", subtitle: "For Marriage", href: "/kundli?tab=matching", icon: HeartHandshake },
+  { title: "Daily Horoscope", subtitle: "12 Zodiac Signs", href: "/horoscope", icon: Sun },
+  { title: "Today's Panchang", subtitle: "Tithi & Muhurat", href: "/panchang", icon: Compass },
+  { title: "Puja Booking", subtitle: "Online & Temple", href: "/puja", icon: Flame },
+  { title: "Live Astrologers", subtitle: "Talk Now", href: "/astrologers?filter=online", icon: Radio },
+  { title: "Astro Store", subtitle: "Gems & Rudraksha", href: "/store", icon: Gem },
+  { title: "Super Admin", subtitle: "Enterprise Portal", href: "/admin", icon: ShieldCheck },
 ];
 
 export function HomePageView() {
@@ -267,6 +267,41 @@ export function HomePageView() {
                   </Link>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        {/* Dedicated Portals Quick Bar */}
+        <section style={{ backgroundColor: "#FAF5ED", borderBlockEnd: "1px solid var(--border)", paddingBlock: "0.75rem" }}>
+          <div className="container" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+              <Sparkles size={15} color="#D4A84F" />
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--royal-purple)" }}>
+                Direct Portals:
+              </span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+              <Link
+                href="/admin"
+                className="btn btn-sm btn-purple"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <ShieldCheck size={14} color="#D4A84F" /> Super Admin (36 Modules)
+              </Link>
+              <Link
+                href="/partner"
+                className="btn btn-sm btn-gold"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <Award size={14} /> Astrologer Console
+              </Link>
+              <Link
+                href="/account"
+                className="btn btn-sm btn-outline"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <CheckCircle2 size={14} color="var(--royal-purple)" /> Devotee Dashboard
+              </Link>
             </div>
           </div>
         </section>
@@ -923,6 +958,41 @@ export function HomePageView() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        {/* Dedicated Portals Quick Bar */}
+        <section style={{ backgroundColor: "#FAF5ED", borderBlockEnd: "1px solid var(--border)", paddingBlock: "0.75rem" }}>
+          <div className="container" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+              <Sparkles size={15} color="#D4A84F" />
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--royal-purple)" }}>
+                Direct Portals:
+              </span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+              <Link
+                href="/admin"
+                className="btn btn-sm btn-purple"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <ShieldCheck size={14} color="#D4A84F" /> Super Admin (36 Modules)
+              </Link>
+              <Link
+                href="/partner"
+                className="btn btn-sm btn-gold"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <Award size={14} /> Astrologer Console
+              </Link>
+              <Link
+                href="/account"
+                className="btn btn-sm btn-outline"
+                style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
+              >
+                <CheckCircle2 size={14} color="var(--royal-purple)" /> Devotee Dashboard
+              </Link>
             </div>
           </div>
         </section>

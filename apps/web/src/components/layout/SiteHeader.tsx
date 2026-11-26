@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   Bell,
   BookOpen,
+  Compass,
   Flame,
   HeartHandshake,
   Home,
@@ -16,6 +17,7 @@ import {
   Plus,
   Radio,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Smartphone,
   Sparkles,
@@ -34,14 +36,16 @@ const SERVICE_NAV = [
   { label: "Chat with Astrologer", href: "/astrologers?mode=chat", icon: MessageCircle },
   { label: "Talk to Astrologer", href: "/astrologers?mode=call", icon: PhoneCall },
   { label: "Video Consultation", href: "/astrologers?mode=video", icon: Video },
-  { label: "Free Kundli", href: "/#free-kundli", icon: LayoutGrid },
-  { label: "Kundli Matching", href: "/#kundli-matching", icon: HeartHandshake },
-  { label: "Horoscope", href: "/#daily-horoscope", icon: Sun },
-  { label: "Live Astrologers", href: "/#live-astrologers", icon: Radio, isLive: true },
+  { label: "Free Kundli", href: "/kundli", icon: LayoutGrid },
+  { label: "Kundli Matching", href: "/kundli?tab=matching", icon: HeartHandshake },
+  { label: "Horoscope", href: "/horoscope", icon: Sun },
+  { label: "Panchang", href: "/panchang", icon: Compass },
+  { label: "Live Astrologers", href: "/astrologers?filter=online", icon: Radio, isLive: true },
   { label: "Puja Booking", href: "/puja", icon: Flame },
   { label: "Astro Store", href: "/store", icon: ShoppingBag },
   { label: "Become an Astrologer", href: "/partner", icon: UserPlus },
-  { label: "Pandit Portal", href: "/pandit", icon: Flame },
+  { label: "Customer Dashboard", href: "/account", icon: User },
+  { label: "Super Admin", href: "/admin", icon: ShieldCheck },
 ];
 
 export function SiteHeader() {
@@ -71,10 +75,9 @@ export function SiteHeader() {
             </span>
           </div>
           <div className="announcement-links">
-            <Link href="/account">Customer Dashboard</Link>
+            <Link href="/account">Devotee Dashboard</Link>
             <Link href="/partner">Astrologer Portal</Link>
-            <Link href="/pandit">Pandit Portal</Link>
-            <Link href="/admin">Admin Panel</Link>
+            <Link href="/admin" style={{ color: "#F2C96B", fontWeight: 700 }}>★ Admin Panel</Link>
           </div>
         </div>
       </div>
@@ -150,6 +153,25 @@ export function SiteHeader() {
                 <span>Login / Register</span>
               </button>
             )}
+
+            <Link
+              href="/admin"
+              className="login-btn"
+              style={{
+                backgroundColor: "rgba(53, 16, 68, 0.08)",
+                border: "1px solid rgba(212, 168, 79, 0.5)",
+                color: "var(--royal-purple)",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+              title="Super Admin Workspace"
+            >
+              <ShieldCheck size={15} color="#D4A84F" />
+              <span>Admin</span>
+            </Link>
 
             <button
               type="button"

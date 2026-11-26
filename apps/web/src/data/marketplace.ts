@@ -62,7 +62,7 @@ export const HERO_BANNERS: HeroBannerSlide[] = [
     subtitle:
       "Prepare Lagna, Navamsa, planetary degrees, Nakshatra, and Vimshottari Dasha charts effortlessly.",
     ctaLabel: "Generate Free Kundli",
-    ctaHref: "/#free-kundli",
+    ctaHref: "/kundli",
     image: "/images/banner-4.svg",
     offerTag: "Complimentary Tool",
     offerHeadline: "Detailed Birth Chart",
@@ -76,7 +76,7 @@ export const HERO_BANNERS: HeroBannerSlide[] = [
     subtitle:
       "Participate in Grah Shanti, Rudrabhishek, and Festival Pujas conducted by verified temple Pandits.",
     ctaLabel: "Explore Puja Services",
-    ctaHref: "/#puja-booking",
+    ctaHref: "/puja",
     image: "/images/banner-5.svg",
     offerTag: "Sacred Rituals",
     offerHeadline: "Sankalp · Live Darshan · Prasad",
