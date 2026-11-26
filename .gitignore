@@ -19,5 +19,6 @@ uploads/
 
 # Logs & OS
 *.log
+*.zip
 .DS_Store
 Thumbs.db
