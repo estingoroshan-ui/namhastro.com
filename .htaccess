@@ -4,17 +4,29 @@ DirectoryIndex index.html index.php
   RewriteEngine On
   RewriteBase /
 
-  # Serve static Next.js assets
+  # 1. Serve Next.js static assets and images directly
   RewriteRule ^_next/(.*)$ _next/$1 [L]
-
-  # Serve images
   RewriteRule ^images/(.*)$ images/$1 [L]
 
-  # Allow existing files and directories
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
+  # 2. If the request matches an existing file, serve it directly (.rsc, .html, .js, .css, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # SPA / dynamic route fallback to index.html
+  # 3. If request matches existing directory with trailing slash, serve directory's index.html
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteCond %{REQUEST_FILENAME}/index.html -f
+  RewriteRule ^ - [L]
+
+  # 4. If request is a directory WITHOUT trailing slash, redirect with trailing slash (e.g. /admin -> /admin/)
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^(.*[^/])$ $1/ [R=301,L]
+
+  # 5. If root file.html exists (e.g. /admin.html or /kundli.html), serve it
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^([^/]+)/?$ $1.html [L]
+
+  # 6. SPA fallback for dynamic routes
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.html [L]
 </IfModule>
