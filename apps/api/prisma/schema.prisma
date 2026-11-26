@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   CUSTOMER
   ASTROLOGER
+  PANDIT
   SUPPORT
   FINANCE
   VERIFICATION
@@ -91,6 +92,15 @@ model User {
   deviceTokens         DeviceToken[]
   paymentOrders        PaymentOrder[]
   gstInvoices          GstInvoice[]
+  panditProfile        PanditProfile?
+  pujaBookings         PujaBooking[]              @relation("CustomerPujaBookings")
+  storeOrders          StoreOrder[]               @relation("CustomerStoreOrders")
+  productReviews       ProductReview[]            @relation("CustomerReviews")
+  wishlist             WishlistItem[]
+  referralCode         ReferralCode?
+  referralRewardsGiven ReferralReward[]           @relation("ReferrerRewards")
+  referralRewardsRecv  ReferralReward[]           @relation("RefereeRewards")
+  couponRedemptions    CouponRedemption[]
 
   @@index([role, status])
   @@map("users")
@@ -1193,4 +1203,635 @@ model ReconciliationReport {
 
   @@index([reportDate, status])
   @@map("reconciliation_reports")
+}
+
+// ==============================================================================
+// STEP 10: ONLINE PUJA, PANDIT, TEMPLE, ASTRO STORE & E-COMMERCE
+// ==============================================================================
+
+model PujaCategory {
+  id              String         @id @default(cuid())
+  name            String         @db.VarChar(120)
+  slug            String         @unique @db.VarChar(140)
+  description     String?        @db.Text
+  iconUrl         String?        @db.VarChar(255)
+  bannerUrl       String?        @db.VarChar(255)
+  displayOrder    Int            @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  services        PujaService[]
+
+  @@map("puja_categories")
+}
+
+model PujaService {
+  id                    String            @id @default(cuid())
+  categoryId            String
+  name                  String            @db.VarChar(160)
+  slug                  String            @unique @db.VarChar(180)
+  shortDescription      String            @db.VarChar(255)
+  detailedDescription   String            @db.Text
+  significance          String?           @db.Text
+  procedure             String?           @db.Text
+  durationMinutes       Int               @default(60)
+  samagriList           String?           @db.Text
+  inclusions            String?           @db.Text
+  exclusions            String?           @db.Text
+  coverImageUrl         String?           @db.VarChar(255)
+  galleryImagesJson     Json?
+  videoUrl              String?           @db.VarChar(255)
+  templeId              String?
+  availableLanguagesJson Json?
+  regularPricePaise     BigInt            @default(0)
+  discountedPricePaise  BigInt            @default(0)
+  taxRateBps            Int               @default(1800)
+  bookingCapacity       Int               @default(10)
+  cancellationPolicy    String?           @db.Text
+  refundPolicy          String?           @db.Text
+  metaTitle             String?           @db.VarChar(200)
+  metaDescription       String?           @db.VarChar(300)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  category              PujaCategory      @relation(fields: [categoryId], references: [id])
+  temple                Temple?           @relation(fields: [templeId], references: [id])
+  packages              PujaPackage[]
+  addOns                PujaAddOn[]
+  bookings              PujaBooking[]
+
+  @@index([categoryId, isActive])
+  @@map("puja_services")
+}
+
+model PujaPackage {
+  id                    String            @id @default(cuid())
+  pujaServiceId         String
+  packageName           String            @db.VarChar(80)
+  description           String?           @db.VarChar(255)
+  pricePaise            BigInt            @default(0)
+  maxParticipants       Int               @default(1)
+  durationMinutes       Int               @default(60)
+  inclusionsJson        Json?
+  isActive              Boolean           @default(true)
+
+  pujaService           PujaService       @relation(fields: [pujaServiceId], references: [id], onDelete: Cascade)
+  bookings              PujaBooking[]
+
+  @@map("puja_packages")
+}
+
+model PujaAddOn {
+  id                    String            @id @default(cuid())
+  pujaServiceId         String?
+  name                  String            @db.VarChar(120)
+  description           String?           @db.VarChar(255)
+  pricePaise            BigInt            @default(0)
+  type                  String            @default("SAMAGRI") @db.VarChar(32)
+  isActive              Boolean           @default(true)
+
+  pujaService           PujaService?      @relation(fields: [pujaServiceId], references: [id], onDelete: Cascade)
+
+  @@map("puja_add_ons")
+}
+
+model Temple {
+  id                    String            @id @default(cuid())
+  name                  String            @db.VarChar(160)
+  slug                  String            @unique @db.VarChar(180)
+  deity                 String            @db.VarChar(120)
+  description           String?           @db.Text
+  address               String            @db.VarChar(255)
+  city                  String            @db.VarChar(100)
+  state                 String            @db.VarChar(100)
+  pincode               String?           @db.VarChar(10)
+  latitude              Decimal?          @db.Decimal(10, 7)
+  longitude             Decimal?          @db.Decimal(10, 7)
+  imageUrl              String?           @db.VarChar(255)
+  galleryImagesJson     Json?
+  contactPhone          String?           @db.VarChar(20)
+  contactEmail          String?           @db.VarChar(120)
+  dailyBookingCapacity  Int               @default(50)
+  templeTimings         String?           @db.VarChar(120)
+  isVerified            Boolean           @default(true)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  pujaServices          PujaService[]
+  pandits               PanditProfile[]
+  bookings              PujaBooking[]
+
+  @@map("temples")
+}
+
+model PanditProfile {
+  id                    String            @id @default(cuid())
+  userId                String            @unique
+  displayName           String            @db.VarChar(120)
+  slug                  String            @unique @db.VarChar(140)
+  avatarUrl             String?           @db.VarChar(255)
+  experienceYears       Int               @default(5)
+  languagesJson         Json?
+  specialisationsJson   Json?
+  serviceLocationsJson  Json?
+  templeId              String?
+  qualificationDocsJson Json?
+  idVerificationDocUrl  String?           @db.VarChar(255)
+  verificationStage     VerificationStage @default(APPLIED)
+  commissionBpsOverride Int?
+  averageRating         Decimal           @default(5.00) @db.Decimal(3, 2)
+  totalReviews          Int               @default(0)
+  totalPujasCompleted   Int               @default(0)
+  isAvailable           Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  temple                Temple?           @relation(fields: [templeId], references: [id])
+  bookings              PujaBooking[]
+  availabilities        PanditAvailability[]
+
+  @@map("pandit_profiles")
+}
+
+model PanditAvailability {
+  id                    String            @id @default(cuid())
+  panditId              String
+  dayOfWeek             Int?
+  startTime             String?           @db.VarChar(8)
+  endTime               String?           @db.VarChar(8)
+  isBlocked             Boolean           @default(false)
+  blockedDate           DateTime?         @db.Date
+  reason                String?           @db.VarChar(160)
+
+  pandit                PanditProfile     @relation(fields: [panditId], references: [id], onDelete: Cascade)
+
+  @@map("pandit_availabilities")
+}
+
+model PujaBooking {
+  id                    String            @id @default(cuid())
+  bookingNumber         String            @unique @db.VarChar(48)
+  customerId            String
+  pujaServiceId         String
+  packageId             String?
+  panditId              String?
+  templeId              String?
+  scheduledDate         DateTime          @db.Date
+  timeSlot              String            @db.VarChar(32)
+  status                String            @default("PENDING_PAYMENT") @db.VarChar(32)
+  totalAmountPaise      BigInt            @default(0)
+  taxAmountPaise        BigInt            @default(0)
+  panditFeePaise        BigInt            @default(0)
+  platformCommissionPaise BigInt          @default(0)
+  isLiveOnline          Boolean           @default(false)
+  agoraChannel          String?           @db.VarChar(64)
+  agoraToken            String?           @db.Text
+  sankalpName           String?           @db.VarChar(120)
+  gotra                 String?           @db.VarChar(80)
+  birthDetailsJson      Json?
+  sankalpWish           String?           @db.Text
+  addressId             String?           @db.VarChar(64)
+  specialInstructions   String?           @db.Text
+  completionNotes       String?           @db.Text
+  photosJson            Json?
+  videoUrl              String?           @db.VarChar(255)
+  prasadShipped         Boolean           @default(false)
+  prasadTrackingNumber  String?           @db.VarChar(64)
+  paymentOrderId        String?           @db.VarChar(64)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  customer              User              @relation("CustomerPujaBookings", fields: [customerId], references: [id])
+  pujaService           PujaService       @relation(fields: [pujaServiceId], references: [id])
+  package               PujaPackage?      @relation(fields: [packageId], references: [id])
+  pandit                PanditProfile?    @relation(fields: [panditId], references: [id])
+  temple                Temple?           @relation(fields: [templeId], references: [id])
+  participants          PujaParticipant[]
+  timeline              PujaTimeline[]
+
+  @@index([customerId, status])
+  @@index([panditId, scheduledDate])
+  @@map("puja_bookings")
+}
+
+model PujaParticipant {
+  id                    String            @id @default(cuid())
+  bookingId             String
+  fullName              String            @db.VarChar(120)
+  relationship          String?           @db.VarChar(60)
+  gotra                 String?           @db.VarChar(80)
+  dob                   DateTime?         @db.Date
+  rashi                 String?           @db.VarChar(40)
+  nakshatra             String?           @db.VarChar(40)
+
+  booking               PujaBooking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("puja_participants")
+}
+
+model PujaTimeline {
+  id                    String            @id @default(cuid())
+  bookingId             String
+  status                String            @db.VarChar(32)
+  actorId               String?           @db.VarChar(64)
+  notes                 String?           @db.VarChar(255)
+  createdAt             DateTime          @default(now())
+
+  booking               PujaBooking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("puja_timelines")
+}
+
+model ProductCategory {
+  id                    String            @id @default(cuid())
+  name                  String            @db.VarChar(120)
+  slug                  String            @unique @db.VarChar(140)
+  description           String?           @db.Text
+  imageUrl              String?           @db.VarChar(255)
+  parentId              String?           @db.VarChar(64)
+  displayOrder          Int               @default(0)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  products              Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                    String            @id @default(cuid())
+  categoryId            String
+  name                  String            @db.VarChar(180)
+  slug                  String            @unique @db.VarChar(200)
+  sku                   String            @unique @db.VarChar(64)
+  barcode               String?           @db.VarChar(64)
+  brand                 String?           @db.VarChar(80)
+  shortDescription      String            @db.VarChar(255)
+  detailedDescription   String            @db.Text
+  specificationsJson    Json?
+  material              String?           @db.VarChar(80)
+  origin                String?           @db.VarChar(80)
+  weightGrams           Decimal?          @db.Decimal(8, 2)
+  dimensions            String?           @db.VarChar(60)
+  color                 String?           @db.VarChar(40)
+  regularPricePaise     BigInt            @default(0)
+  salePricePaise        BigInt            @default(0)
+  costPricePaise        BigInt            @default(0)
+  taxRateBps            Int               @default(1800)
+  hsnCode               String?           @db.VarChar(20)
+  stockQuantity         Int               @default(0)
+  minStockAlert         Int               @default(5)
+  coverImageUrl         String?           @db.VarChar(255)
+  galleryImagesJson     Json?
+  videoUrl              String?           @db.VarChar(255)
+  certificateUrl        String?           @db.VarChar(255)
+  returnPolicy          String?           @db.Text
+  metaTitle             String?           @db.VarChar(200)
+  metaDescription       String?           @db.VarChar(300)
+  isFeatured            Boolean           @default(false)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  category              ProductCategory   @relation(fields: [categoryId], references: [id])
+  variants              ProductVariant[]
+  reviews               ProductReview[]
+  inventory             Inventory[]
+  cartItems             CartItem[]
+  orderItems            StoreOrderItem[]
+  wishlist              WishlistItem[]
+
+  @@index([categoryId, isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id                    String            @id @default(cuid())
+  productId             String
+  title                 String            @db.VarChar(120)
+  sku                   String            @unique @db.VarChar(64)
+  attributesJson        Json?
+  pricePaise            BigInt            @default(0)
+  salePricePaise        BigInt            @default(0)
+  stockQuantity         Int               @default(0)
+  imageUrl              String?           @db.VarChar(255)
+  isActive              Boolean           @default(true)
+
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems             CartItem[]
+  orderItems            StoreOrderItem[]
+
+  @@map("product_variants")
+}
+
+model Inventory {
+  id                    String            @id @default(cuid())
+  productId             String
+  variantId             String?
+  warehouseId           String?
+  availableStock        Int               @default(0)
+  reservedStock         Int               @default(0)
+  damagedStock          Int               @default(0)
+  updatedAt             DateTime          @updatedAt
+
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, variantId, warehouseId])
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id                    String            @id @default(cuid())
+  productId             String
+  variantId             String?
+  type                  String            @db.VarChar(32)
+  quantity              Int
+  reason                String?           @db.VarChar(255)
+  referenceId           String?           @db.VarChar(64)
+  performedByUserId     String?           @db.VarChar(64)
+  createdAt             DateTime          @default(now())
+
+  @@index([productId, type])
+  @@map("inventory_movements")
+}
+
+model Warehouse {
+  id                    String            @id @default(cuid())
+  name                  String            @db.VarChar(120)
+  code                  String            @unique @db.VarChar(32)
+  address               String            @db.VarChar(255)
+  city                  String            @db.VarChar(100)
+  state                 String            @db.VarChar(100)
+  pincode               String            @db.VarChar(10)
+  contactPhone          String?           @db.VarChar(20)
+  isActive              Boolean           @default(true)
+
+  @@map("warehouses")
+}
+
+model Supplier {
+  id                    String            @id @default(cuid())
+  name                  String            @db.VarChar(120)
+  code                  String            @unique @db.VarChar(32)
+  contactName           String?           @db.VarChar(100)
+  phone                 String?           @db.VarChar(20)
+  email                 String?           @db.VarChar(120)
+  address               String?           @db.VarChar(255)
+  gstNumber             String?           @db.VarChar(30)
+  createdAt             DateTime          @default(now())
+
+  @@map("suppliers")
+}
+
+model Cart {
+  id                    String            @id @default(cuid())
+  customerId            String?           @unique
+  sessionId             String?           @unique @db.VarChar(128)
+  updatedAt             DateTime          @updatedAt
+
+  items                 CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id                    String            @id @default(cuid())
+  cartId                String
+  productId             String
+  variantId             String?
+  quantity              Int               @default(1)
+  pricePaiseAtAdd       BigInt            @default(0)
+  createdAt             DateTime          @default(now())
+
+  cart                  Cart              @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant               ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@map("cart_items")
+}
+
+model StoreOrder {
+  id                    String            @id @default(cuid())
+  orderNumber           String            @unique @db.VarChar(48)
+  customerId            String
+  status                String            @default("PENDING_PAYMENT") @db.VarChar(32)
+  subtotalPaise         BigInt            @default(0)
+  taxAmountPaise        BigInt            @default(0)
+  shippingAmountPaise   BigInt            @default(0)
+  discountAmountPaise   BigInt            @default(0)
+  totalAmountPaise      BigInt            @default(0)
+  shippingAddressJson   Json
+  billingAddressJson    Json?
+  paymentMethod         String            @default("ONLINE") @db.VarChar(32)
+  paymentOrderId        String?           @db.VarChar(64)
+  couponCode            String?           @db.VarChar(40)
+  shippingProvider      String?           @db.VarChar(40)
+  awbNumber             String?           @db.VarChar(64)
+  trackingUrl           String?           @db.VarChar(255)
+  invoiceUrl            String?           @db.VarChar(255)
+  notes                 String?           @db.Text
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  customer              User              @relation("CustomerStoreOrders", fields: [customerId], references: [id])
+  items                 StoreOrderItem[]
+  returns               ProductReturnRequest[]
+
+  @@index([customerId, status])
+  @@map("store_orders")
+}
+
+model StoreOrderItem {
+  id                    String            @id @default(cuid())
+  orderId               String
+  productId             String
+  variantId             String?
+  productName           String            @db.VarChar(180)
+  sku                   String            @db.VarChar(64)
+  pricePaise            BigInt
+  quantity              Int               @default(1)
+  taxAmountPaise        BigInt            @default(0)
+  totalPaise            BigInt
+
+  order                 StoreOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product               Product           @relation(fields: [productId], references: [id])
+  variant               ProductVariant?   @relation(fields: [variantId], references: [id])
+
+  @@map("store_order_items")
+}
+
+model ProductReturnRequest {
+  id                    String            @id @default(cuid())
+  orderId               String
+  orderItemId           String?           @db.VarChar(64)
+  customerId            String
+  type                  String            @default("RETURN") @db.VarChar(20)
+  reason                String            @db.VarChar(255)
+  evidenceImagesJson    Json?
+  status                String            @default("REQUESTED") @db.VarChar(32)
+  adminNotes            String?           @db.Text
+  refundAmountPaise     BigInt            @default(0)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  order                 StoreOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("product_return_requests")
+}
+
+model ProductReview {
+  id                    String            @id @default(cuid())
+  productId             String
+  customerId            String
+  rating                Int               @default(5)
+  reviewText            String?           @db.Text
+  photosJson            Json?
+  isVerifiedPurchase    Boolean           @default(true)
+  isApproved            Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer              User              @relation("CustomerReviews", fields: [customerId], references: [id])
+
+  @@map("product_reviews")
+}
+
+model WishlistItem {
+  id                    String            @id @default(cuid())
+  customerId            String
+  productId             String
+  createdAt             DateTime          @default(now())
+
+  customer              User              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@map("wishlist_items")
+}
+
+model ReferralCode {
+  id                    String            @id @default(cuid())
+  userId                String            @unique
+  code                  String            @unique @db.VarChar(32)
+  shareLink             String            @db.VarChar(255)
+  timesUsed             Int               @default(0)
+  createdAt             DateTime          @default(now())
+
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("referral_codes")
+}
+
+model ReferralReward {
+  id                    String            @id @default(cuid())
+  referrerUserId        String
+  refereeUserId         String
+  status                String            @default("APPROVED") @db.VarChar(32)
+  amountPaise           BigInt            @default(10000)
+  qualifyingOrderId     String?           @db.VarChar(64)
+  creditedAt            DateTime?
+  createdAt             DateTime          @default(now())
+
+  referrer              User              @relation("ReferrerRewards", fields: [referrerUserId], references: [id])
+  referee               User              @relation("RefereeRewards", fields: [refereeUserId], references: [id])
+
+  @@map("referral_rewards")
+}
+
+model Coupon {
+  id                    String            @id @default(cuid())
+  code                  String            @unique @db.VarChar(40)
+  campaignName          String            @db.VarChar(120)
+  discountType          String            @default("PERCENTAGE") @db.VarChar(20)
+  discountValue         Int               @default(10)
+  maxDiscountPaise      BigInt?
+  minOrderAmountPaise   BigInt            @default(0)
+  usageLimit            Int?
+  perCustomerLimit      Int               @default(1)
+  timesUsed             Int               @default(0)
+  startDate             DateTime          @default(now())
+  endDate               DateTime?
+  eligibleCategoriesJson Json?
+  eligibleServicesJson  Json?
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+
+  redemptions           CouponRedemption[]
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id                    String            @id @default(cuid())
+  couponId              String
+  userId                String
+  orderId               String?           @db.VarChar(64)
+  bookingId             String?           @db.VarChar(64)
+  discountPaise         BigInt
+  createdAt             DateTime          @default(now())
+
+  coupon                Coupon            @relation(fields: [couponId], references: [id])
+  user                  User              @relation(fields: [userId], references: [id])
+
+  @@map("coupon_redemptions")
+}
+
+model CustomerSegment {
+  id                    String            @id @default(cuid())
+  name                  String            @db.VarChar(120)
+  criteriaJson          Json
+  customerCount         Int               @default(0)
+  createdAt             DateTime          @default(now())
+
+  @@map("customer_segments")
+}
+
+model AutomationRule {
+  id                    String            @id @default(cuid())
+  triggerEvent          String            @db.VarChar(64)
+  channel               String            @default("FIREBASE_PUSH") @db.VarChar(32)
+  titleTemplate         String            @db.VarChar(180)
+  bodyTemplate          String            @db.Text
+  delayMinutes          Int               @default(0)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+
+  @@map("automation_rules")
+}
+
+model Banner {
+  id                    String            @id @default(cuid())
+  location              String            @default("HOMEPAGE_HERO") @db.VarChar(64)
+  desktopImageUrl       String            @db.VarChar(255)
+  mobileImageUrl        String?           @db.VarChar(255)
+  title                 String            @db.VarChar(160)
+  subtitle              String?           @db.VarChar(255)
+  ctaText               String?           @db.VarChar(60)
+  ctaUrl                String?           @db.VarChar(255)
+  displayOrder          Int               @default(0)
+  startDate             DateTime          @default(now())
+  endDate               DateTime?
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+
+  @@map("banners")
+}
+
+model CMSSection {
+  id                    String            @id @default(cuid())
+  sectionKey            String            @unique @db.VarChar(64)
+  title                 String            @db.VarChar(160)
+  subtitle              String?           @db.VarChar(255)
+  displayOrder          Int               @default(0)
+  configJson            Json?
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@map("cms_sections")
 }

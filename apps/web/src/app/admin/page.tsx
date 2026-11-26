@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  Truck,
   UserCheck,
   Users,
   Video,
@@ -53,6 +54,9 @@ const ADMIN_MODULES = [
   { id: "consultations", label: "Live Consultations", icon: Activity, count: "Agora" },
   { id: "customers", label: "Customer Accounts", icon: Users, count: "Users" },
   { id: "wallets", label: "Wallet Accounting", icon: Wallet, count: "INR" },
+  { id: "puja-management", label: "Puja & Pandit Marketplace", icon: Flame, count: "Pujas" },
+  { id: "store-management", label: "Astro Store & Inventory", icon: ShoppingBag, count: "Store" },
+  { id: "marketing-management", label: "Referral, Coupons & CMS", icon: Sparkles, count: "Growth" },
   { id: "notifications", label: "FCM Push & Alerts", icon: Bell, count: "Firebase" },
   { id: "settings", label: "System Settings", icon: Settings, count: "Config" },
 ] as const;
@@ -1713,7 +1717,419 @@ export default function SuperAdminDashboardPage() {
           </div>
         )}
 
-        {/* Approval Modal */}
+        {/* Section: Puja & Pandit Marketplace Management */}
+        {activeId === "puja-management" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.85rem" }}>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #D4A84F" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Total Puja Bookings</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>48</strong>
+                <span style={{ fontSize: "0.72rem", color: "#10B981", display: "block" }}>8 Scheduled Today</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Verified Pandits &amp; Acharyas</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--royal-purple)" }}>24</strong>
+                <span style={{ fontSize: "0.72rem", color: "#10B981", display: "block" }}>100% KYC Approved</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #10B981" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Puja Gross Revenue</span>
+                <strong style={{ fontSize: "1.6rem", color: "#10B981" }}>₹1,94,800.00</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>25% Platform / 75% Pandit</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #F59E0B" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Affiliated Sacred Temples</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>12</strong>
+                <span style={{ fontSize: "0.72rem", color: "#F59E0B", display: "block" }}>Kashi, Ujjain, Haridwar</span>
+              </div>
+            </div>
+
+            {/* Puja Bookings Queue */}
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <Flame size={18} color="#D4A84F" /> Devotee Puja Bookings &amp; Pandit Allocation
+                </h2>
+                <span className="status-pill status-online">Live Sync Active</span>
+              </div>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Booking Ref</th>
+                      <th>Puja Service</th>
+                      <th>Devotee Name</th>
+                      <th>Gotra / Nakshatra</th>
+                      <th>Date &amp; Slot</th>
+                      <th>Assigned Pandit</th>
+                      <th>Total (GST incl.)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>#NA-PUJA-20261126-7841</strong></td>
+                      <td>Maha Rudrabhishek with Bilva Patra</td>
+                      <td>Aarav Sharma</td>
+                      <td>Kashyapa / Ashwini</td>
+                      <td>Today, 06:30 PM</td>
+                      <td><span style={{ color: "#D4A84F", fontWeight: 600 }}>Acharya Vidyadhar Shastri</span></td>
+                      <td><strong>₹4,956.00</strong></td>
+                      <td><span className="status-pill status-online">IN_PROGRESS</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>#NA-PUJA-20261127-1092</strong></td>
+                      <td>Navagraha Shanti &amp; Dosha Nivaran</td>
+                      <td>Vikram Singhania</td>
+                      <td>Bharadwaj / Rohini</td>
+                      <td>Tomorrow, 09:00 AM</td>
+                      <td><span style={{ color: "#D4A84F", fontWeight: 600 }}>Pt. Devendra Upadhyay</span></td>
+                      <td><strong>₹6,490.00</strong></td>
+                      <td><span className="status-pill status-pending">ASSIGNED</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>#NA-PUJA-20261125-9923</strong></td>
+                      <td>Lakshmi-Kubera Dhan Prapti Homa</td>
+                      <td>Pooja Malhotra</td>
+                      <td>Vashishta / Pushya</td>
+                      <td>25 Nov 2026</td>
+                      <td><span style={{ color: "#D4A84F", fontWeight: 600 }}>Acharya Ramanand Jha</span></td>
+                      <td><strong>₹6,018.00</strong></td>
+                      <td><span className="status-pill status-online">COMPLETED</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Pandit Partners Table */}
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: "0 0 0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <ShieldCheck size={18} color="var(--royal-purple)" /> Registered Pandit Partners &amp; KYC
+              </h2>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Pandit Name</th>
+                      <th>Specialisations</th>
+                      <th>Pilgrimage Temple</th>
+                      <th>Experience</th>
+                      <th>Pujas Done</th>
+                      <th>Rating</th>
+                      <th>KYC Stage</th>
+                      <th>Availability</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Acharya Vidyadhar Shastri</strong></td>
+                      <td>Rudrabhishek, Maha Mrityunjaya, Karmakand</td>
+                      <td>Kashi Vishwanath, Varanasi</td>
+                      <td>14 Years</td>
+                      <td>184</td>
+                      <td>★ 4.95</td>
+                      <td><span className="status-pill status-online">APPROVED</span></td>
+                      <td><span style={{ color: "#10B981", fontWeight: 600 }}>● ONLINE</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Pt. Devendra Upadhyay</strong></td>
+                      <td>Navagraha Shanti, Kaal Sarp Nivaran</td>
+                      <td>Mahakaleshwar, Ujjain</td>
+                      <td>11 Years</td>
+                      <td>142</td>
+                      <td>★ 4.90</td>
+                      <td><span className="status-pill status-online">APPROVED</span></td>
+                      <td><span style={{ color: "#10B981", fontWeight: 600 }}>● ONLINE</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Acharya Ramanand Jha</strong></td>
+                      <td>Satyanarayan Katha, Griha Pravesh</td>
+                      <td>Har Ki Pauri, Haridwar</td>
+                      <td>18 Years</td>
+                      <td>215</td>
+                      <td>★ 4.98</td>
+                      <td><span className="status-pill status-online">APPROVED</span></td>
+                      <td><span style={{ color: "#10B981", fontWeight: 600 }}>● ONLINE</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Section: Astro Store & Inventory Management */}
+        {activeId === "store-management" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.85rem" }}>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #D4A84F" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Active Product SKUs</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>54</strong>
+                <span style={{ fontSize: "0.72rem", color: "#10B981", display: "block" }}>16 Sacred Categories</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #10B981" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Store Revenue (MTD)</span>
+                <strong style={{ fontSize: "1.6rem", color: "#10B981" }}>₹3,48,200.00</strong>
+                <span style={{ fontSize: "0.72rem", color: "#10B981", display: "block" }}>18% GST Accounted</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #3B82F6" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Orders Dispatched</span>
+                <strong style={{ fontSize: "1.6rem", color: "#3B82F6" }}>89</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>Delhivery &amp; BlueDart</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #EF4444" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Low Stock Alerts</span>
+                <strong style={{ fontSize: "1.6rem", color: "#EF4444" }}>2</strong>
+                <span style={{ fontSize: "0.72rem", color: "#EF4444", display: "block" }}>1 Mukhi &amp; Ceylon Neelam</span>
+              </div>
+            </div>
+
+            {/* Products Inventory Table */}
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <ShoppingBag size={18} color="var(--royal-purple)" /> Astro Store Inventory &amp; Stock Levels
+                </h2>
+                <button type="button" className="btn btn-purple btn-sm">
+                  <Plus size={14} /> Add Product SKU
+                </button>
+              </div>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Product Title</th>
+                      <th>Category</th>
+                      <th>Origin</th>
+                      <th>MRP (₹)</th>
+                      <th>Sale Price (₹)</th>
+                      <th>Available Stock</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>RUD-5M-NEP-108</code></td>
+                      <td><strong>Original 5 Mukhi Nepali Rudraksha Mala (108+1)</strong></td>
+                      <td>Rudraksha Mala</td>
+                      <td>Nepal</td>
+                      <td>₹4,500.00</td>
+                      <td><strong style={{ color: "#D4A84F" }}>₹3,500.00</strong></td>
+                      <td><strong>23 units</strong></td>
+                      <td><span className="status-pill status-online">IN STOCK</span></td>
+                    </tr>
+                    <tr>
+                      <td><code>GEM-PUK-CEY-525</code></td>
+                      <td><strong>Natural Yellow Sapphire (Pukhraj) 5.25 Carat Ceylon</strong></td>
+                      <td>Gemstones</td>
+                      <td>Sri Lanka</td>
+                      <td>₹38,500.00</td>
+                      <td><strong style={{ color: "#D4A84F" }}>₹32,000.00</strong></td>
+                      <td><strong>5 units</strong></td>
+                      <td><span className="status-pill status-online">IN STOCK</span></td>
+                    </tr>
+                    <tr>
+                      <td><code>YAN-SRI-MERU-01</code></td>
+                      <td><strong>Energized 3D Meru Sri Yantra Panchdhatu 24K Gold</strong></td>
+                      <td>Yantra</td>
+                      <td>Varanasi</td>
+                      <td>₹6,500.00</td>
+                      <td><strong style={{ color: "#D4A84F" }}>₹4,999.00</strong></td>
+                      <td><strong>12 units</strong></td>
+                      <td><span className="status-pill status-online">IN STOCK</span></td>
+                    </tr>
+                    <tr>
+                      <td><code>RUD-1M-NEP-KJU</code></td>
+                      <td><strong>Natural 1 Mukhi Round Kaju Nepali Rudraksha</strong></td>
+                      <td>Rudraksha</td>
+                      <td>Nepal</td>
+                      <td>₹25,000.00</td>
+                      <td><strong style={{ color: "#D4A84F" }}>₹18,999.00</strong></td>
+                      <td><strong style={{ color: "#EF4444" }}>3 units</strong></td>
+                      <td><span className="status-pill status-pending">LOW STOCK</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Store Orders & Shipments Queue */}
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: "0 0 0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <Truck size={18} color="#D4A84F" /> Order Fulfillment &amp; Courier Tracking (AWB)
+              </h2>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Order No</th>
+                      <th>Devotee Customer</th>
+                      <th>Items</th>
+                      <th>Total Amount</th>
+                      <th>Payment</th>
+                      <th>Courier Partner</th>
+                      <th>AWB Tracking</th>
+                      <th>Shipment Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>#NA-ORD-20261126-5819</strong></td>
+                      <td>Aarav Sharma (Varanasi)</td>
+                      <td>1x 5 Mukhi Nepali Mala</td>
+                      <td>₹4,130.00</td>
+                      <td><span className="status-pill status-online">WALLET</span></td>
+                      <td>Delhivery Express</td>
+                      <td><code>DLV8839201994</code></td>
+                      <td><span className="status-pill status-online">SHIPPED</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>#NA-ORD-20261125-4102</strong></td>
+                      <td>Meera Nair (Bengaluru)</td>
+                      <td>1x Sri Meru Yantra 24K</td>
+                      <td>₹5,898.82</td>
+                      <td><span className="status-pill status-online">RAZORPAY</span></td>
+                      <td>BlueDart Air</td>
+                      <td><code>BD449281002IN</code></td>
+                      <td><span className="status-pill status-online">DELIVERED</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Section: Referral, Coupons & CMS Management */}
+        {activeId === "marketing-management" && (
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.85rem" }}>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #10B981" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Referral Program Devotees</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>1,240</strong>
+                <span style={{ fontSize: "0.72rem", color: "#10B981", display: "block" }}>₹24,800 Disbursed Rewards</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid #D4A84F" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Coupon Redemptions</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--ink)" }}>348</strong>
+                <span style={{ fontSize: "0.72rem", color: "#D4A84F", display: "block" }}>DIWALI15 Top Performing</span>
+              </div>
+              <div className="surface-card" style={{ padding: "0.85rem 1rem", borderLeft: "4px solid var(--royal-purple)" }}>
+                <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "block" }}>Active CMS Banners</span>
+                <strong style={{ fontSize: "1.6rem", color: "var(--royal-purple)" }}>6</strong>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", display: "block" }}>Hero Slider, Puja &amp; Store</span>
+              </div>
+            </div>
+
+            {/* Coupons Engine */}
+            <section className="surface-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <Sparkles size={18} color="#D4A84F" /> Promotional Coupons &amp; Discount Codes
+                </h2>
+                <button type="button" className="btn btn-purple btn-sm">
+                  <Plus size={14} /> Create Coupon
+                </button>
+              </div>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Coupon Code</th>
+                      <th>Campaign Name</th>
+                      <th>Discount Type</th>
+                      <th>Value</th>
+                      <th>Min Order Value</th>
+                      <th>Max Cap</th>
+                      <th>Times Used</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong style={{ color: "#D4A84F" }}>DIWALI15</strong></td>
+                      <td>Diwali Auspicious Festival</td>
+                      <td>PERCENTAGE</td>
+                      <td>15% OFF</td>
+                      <td>₹1,000.00</td>
+                      <td>₹500.00</td>
+                      <td>214 / 1000</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong style={{ color: "#D4A84F" }}>NAMH100</strong></td>
+                      <td>New Devotee Welcome Voucher</td>
+                      <td>FIXED</td>
+                      <td>₹100.00 FLAT</td>
+                      <td>₹499.00</td>
+                      <td>—</td>
+                      <td>112 / 500</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong style={{ color: "#D4A84F" }}>MAHASHIVA20</strong></td>
+                      <td>Maha Shivaratri Anushthan</td>
+                      <td>PERCENTAGE</td>
+                      <td>20% OFF</td>
+                      <td>₹2,500.00</td>
+                      <td>₹1,000.00</td>
+                      <td>22 / 200</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* CMS Banners Management */}
+            <section className="surface-card">
+              <h2 className="serif-heading" style={{ fontSize: "1.25rem", margin: "0 0 0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <Megaphone size={18} color="var(--royal-purple)" /> Homepage &amp; Marketplace CMS Banners
+              </h2>
+              <div className="table-scroll">
+                <table className="compact-table">
+                  <thead>
+                    <tr>
+                      <th>Location / Slot</th>
+                      <th>Banner Title</th>
+                      <th>Subtitle / Tagline</th>
+                      <th>Target Link</th>
+                      <th>Display Order</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span className="status-pill status-online">HOMEPAGE_HERO</span></td>
+                      <td><strong>Auspicious Maha Shivaratri Rudrabhishek</strong></td>
+                      <td>Live from Kashi Vishwanath with Vedic Purohits · Book with Sankalp</td>
+                      <td><code>/puja</code></td>
+                      <td>#1</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                      <td><span className="status-pill status-online">PUJA_BANNER</span></td>
+                      <td><strong>Vedic Shanti &amp; Dosha Nivaran</strong></td>
+                      <td>Overcome Kaal Sarp and Manglik Dosha with Authentic Tantrokta Rituals</td>
+                      <td><code>/puja</code></td>
+                      <td>#2</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                      <td><span className="status-pill status-online">STORE_BANNER</span></td>
+                      <td><strong>Govt Lab Certified Nepali Rudraksha</strong></td>
+                      <td>Untreated Jyotish Gems &amp; Consecrated 24K Gold Yantras</td>
+                      <td><code>/store</code></td>
+                      <td>#3</td>
+                      <td><span className="status-pill status-online">ACTIVE</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
         {selectedApp && !showRejectModal && (
           <div
             style={{

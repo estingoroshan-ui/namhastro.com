@@ -38,9 +38,10 @@ const SERVICE_NAV = [
   { label: "Kundli Matching", href: "/#kundli-matching", icon: HeartHandshake },
   { label: "Horoscope", href: "/#daily-horoscope", icon: Sun },
   { label: "Live Astrologers", href: "/#live-astrologers", icon: Radio, isLive: true },
-  { label: "Puja Booking", href: "/#puja-booking", icon: Flame },
-  { label: "Astro Store", href: "/#astro-store", icon: ShoppingBag },
+  { label: "Puja Booking", href: "/puja", icon: Flame },
+  { label: "Astro Store", href: "/store", icon: ShoppingBag },
   { label: "Become an Astrologer", href: "/partner", icon: UserPlus },
+  { label: "Pandit Portal", href: "/pandit", icon: Flame },
 ];
 
 export function SiteHeader() {
@@ -72,6 +73,7 @@ export function SiteHeader() {
           <div className="announcement-links">
             <Link href="/account">Customer Dashboard</Link>
             <Link href="/partner">Astrologer Portal</Link>
+            <Link href="/pandit">Pandit Portal</Link>
             <Link href="/admin">Admin Panel</Link>
           </div>
         </div>
