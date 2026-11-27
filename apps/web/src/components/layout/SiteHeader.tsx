@@ -108,11 +108,11 @@ export function SiteHeader() {
           </form>
 
           <div className="header-utilities">
-            <a href="/#download-app" className="download-app-chip">
+            <a href="/namhastro.apk" download="namhastro.apk" className="download-app-chip" title="Download NAMH ASTRO Android App (.apk)">
               <Smartphone size={18} color="#351044" aria-hidden="true" />
               <span>
                 <strong style={{ display: "block", color: "var(--ink)" }}>Download App</strong>
-                <span style={{ color: "var(--ink-muted)" }}>Android &amp; iOS</span>
+                <span style={{ color: "var(--ink-muted)" }}>Android (.APK)</span>
               </span>
             </a>
 

@@ -1024,12 +1024,12 @@ export function HomePageView() {
                 </p>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                <Link href="/account" className="btn btn-purple">
-                  <Smartphone size={16} /> Google Play (Android)
-                </Link>
-                <Link href="/account" className="btn btn-gold">
-                  <Smartphone size={16} /> App Store (iOS)
-                </Link>
+                <a href="/namhastro.apk" download="namhastro.apk" className="btn btn-purple">
+                  <Smartphone size={16} /> Download Android App (.APK)
+                </a>
+                <a href="/#download-app" className="btn btn-gold">
+                  <Smartphone size={16} /> App Store (iOS Web App)
+                </a>
               </div>
             </div>
           </div>

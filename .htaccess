@@ -2,6 +2,7 @@ DirectoryIndex index.html index.php
 
 <IfModule mod_mime.c>
   AddType text/x-component .rsc
+  AddType application/vnd.android.package-archive .apk
 </IfModule>
 
 <IfModule mod_headers.c>

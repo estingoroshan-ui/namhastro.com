@@ -1,0 +1,13 @@
+{
+  "appId": "com.namhastro.app",
+  "appName": "NAMH ASTRO",
+  "webDir": "public",
+  "server": {
+    "url": "https://namhastro.com",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#351044"
+  }
+}
