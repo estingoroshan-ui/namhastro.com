@@ -1,4 +1,4 @@
-import SuperAdminDashboardPage from "../page";
+import { SuperAdminDashboard } from "@/components/admin/SuperAdminDashboard";
 import { ADMIN_MODULES } from "@/data/adminModules";
 
 export function generateStaticParams() {
@@ -11,5 +11,5 @@ export default async function AdminModulePage({
   params: Promise<{ tab: string }>;
 }) {
   const { tab } = await params;
-  return <SuperAdminDashboardPage initialTab={tab} />;
+  return <SuperAdminDashboard initialTab={tab} />;
 }

@@ -281,27 +281,27 @@ export function HomePageView() {
               </span>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
-              <Link
+              <a
                 href="/admin"
                 className="btn btn-sm btn-purple"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
                 <ShieldCheck size={14} color="#D4A84F" /> Super Admin (36 Modules)
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/partner"
                 className="btn btn-sm btn-gold"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
-                <Award size={14} /> Astrologer Console
-              </Link>
-              <Link
+                <Award size={14} /> Astrologer Console &amp; Register
+              </a>
+              <a
                 href="/account"
                 className="btn btn-sm btn-outline"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
                 <CheckCircle2 size={14} color="var(--royal-purple)" /> Devotee Dashboard
-              </Link>
+              </a>
             </div>
           </div>
         </section>
@@ -972,27 +972,27 @@ export function HomePageView() {
               </span>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
-              <Link
+              <a
                 href="/admin"
                 className="btn btn-sm btn-purple"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
                 <ShieldCheck size={14} color="#D4A84F" /> Super Admin (36 Modules)
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/partner"
                 className="btn btn-sm btn-gold"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
-                <Award size={14} /> Astrologer Console
-              </Link>
-              <Link
+                <Award size={14} /> Astrologer Console &amp; Register
+              </a>
+              <a
                 href="/account"
                 className="btn btn-sm btn-outline"
                 style={{ fontSize: "0.78rem", padding: "0.35rem 0.85rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", textDecoration: "none" }}
               >
                 <CheckCircle2 size={14} color="var(--royal-purple)" /> Devotee Dashboard
-              </Link>
+              </a>
             </div>
           </div>
         </section>

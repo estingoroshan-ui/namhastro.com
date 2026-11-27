@@ -22,7 +22,7 @@ export function MobileBottomNav() {
         const active =
           tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href.split("#")[0]) && tab.href !== "/";
         return (
-          <Link
+          <a
             key={tab.id}
             href={tab.href}
             className="mobile-tab"
@@ -30,7 +30,7 @@ export function MobileBottomNav() {
           >
             <Icon size={20} aria-hidden="true" />
             <span>{tab.label}</span>
-          </Link>
+          </a>
         );
       })}
     </nav>

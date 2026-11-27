@@ -75,9 +75,9 @@ export function SiteHeader() {
             </span>
           </div>
           <div className="announcement-links">
-            <Link href="/account">Devotee Dashboard</Link>
-            <Link href="/partner">Astrologer Portal</Link>
-            <Link href="/admin" style={{ color: "#F2C96B", fontWeight: 700 }}>★ Admin Panel</Link>
+            <a href="/account">Devotee Dashboard</a>
+            <a href="/partner">Astrologer Portal</a>
+            <a href="/admin" style={{ color: "#F2C96B", fontWeight: 700 }}>★ Admin Panel</a>
           </div>
         </div>
       </div>
@@ -154,7 +154,7 @@ export function SiteHeader() {
               </button>
             )}
 
-            <Link
+            <a
               href="/admin"
               className="login-btn"
               style={{
@@ -171,7 +171,7 @@ export function SiteHeader() {
             >
               <ShieldCheck size={15} color="#D4A84F" />
               <span>Admin</span>
-            </Link>
+            </a>
 
             <button
               type="button"
@@ -196,7 +196,7 @@ export function SiteHeader() {
                     : pathname.startsWith(item.href.split("?")[0]) && item.href !== "/";
                 return (
                   <li key={item.label}>
-                    <Link
+                    <a
                       href={item.href}
                       className="service-nav-link"
                       aria-current={isActive ? "page" : undefined}
@@ -204,7 +204,7 @@ export function SiteHeader() {
                       <Icon size={14} aria-hidden="true" />
                       <span>{item.label}</span>
                       {item.isLive ? <span className="live-chip">Live</span> : null}
-                    </Link>
+                    </a>
                   </li>
                 );
               })}
@@ -293,7 +293,7 @@ export function SiteHeader() {
                 const Icon = item.icon;
                 return (
                   <li key={item.label}>
-                    <Link
+                    <a
                       href={item.href}
                       onClick={() => setDrawerOpen(false)}
                       style={{
@@ -309,7 +309,7 @@ export function SiteHeader() {
                     >
                       <Icon size={17} color="#351044" />
                       <span>{item.label}</span>
-                    </Link>
+                    </a>
                   </li>
                 );
               })}
@@ -325,27 +325,28 @@ export function SiteHeader() {
                 background: "var(--ivory)",
               }}
             >
-              <Link
+              <a
                 href="/account"
                 className="btn btn-purple"
                 onClick={() => setDrawerOpen(false)}
               >
                 <User size={16} /> Customer Dashboard
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/partner"
                 className="btn btn-outline"
                 onClick={() => setDrawerOpen(false)}
               >
                 <BookOpen size={16} /> Astrologer Partner Portal
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/admin"
-                className="btn btn-outline"
+                className="btn btn-sm btn-gold"
                 onClick={() => setDrawerOpen(false)}
+                style={{ textAlign: "center" }}
               >
-                Super Admin Panel
-              </Link>
+                <ShieldCheck size={16} /> Super Admin (36 Modules)
+              </a>
             </div>
           </div>
         </div>
