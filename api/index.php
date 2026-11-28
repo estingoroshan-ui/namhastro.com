@@ -244,10 +244,137 @@ if ($path === 'partner/dashboard' && $method === 'GET') {
                 'netEarningsInr' => '20,160.00',
                 'withdrawablePaise' => 1850000,
                 'withdrawableInr' => '18,500.00',
+                'withdrawableBalancePaise' => 1850000,
+                'withdrawableBalanceInr' => '18,500.00',
                 'pendingSettlementPaise' => 166000,
                 'pendingSettlementInr' => '1,660.00'
+            ],
+            'pendingRequestsCount' => 0,
+            'pendingRequests' => [],
+            'waitingQueueCount' => 0,
+            'waitingQueue' => [],
+            'bankAccountConfigured' => true,
+            'bankAccountVerified' => true
+        ]
+    ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 5b. Vendor / Partner Earnings & Ledger (partner/earnings)
+// -------------------------------------------------------------
+if ($path === 'partner/earnings' && $method === 'GET') {
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'summary' => [
+                'todayEarningsInr' => 2850.0,
+                'yesterdayEarningsInr' => 4200.0,
+                'thisWeekEarningsInr' => 16800.0,
+                'thisMonthEarningsInr' => 68400.0,
+                'availableBalanceInr' => 18500.0,
+                'pendingEarningsInr' => 2350.0,
+                'reservedWithdrawalInr' => 5000.0,
+                'completedWithdrawalsInr' => 52000.0,
+                'tdsDeductedInr' => 684.0,
+                'grossEarningsInr' => 85500.0
+            ],
+            'bankAccount' => [
+                'id' => 'bank_partner_01',
+                'accountHolderName' => 'Acharya Someshwar Shastri',
+                'bankName' => 'HDFC Bank Ltd',
+                'accountNumberMasked' => '•••• •••• 7890',
+                'ifscCode' => 'HDFC0001234',
+                'accountType' => 'SAVINGS',
+                'panNumber' => 'ABCDE1234F',
+                'isVerified' => true
+            ],
+            'ledgerEntries' => [
+                [
+                    'id' => 'le_01',
+                    'type' => 'EARNING_CREDIT',
+                    'amountInr' => '475.20',
+                    'balanceAfterInr' => '18500.00',
+                    'status' => 'AVAILABLE',
+                    'description' => 'VIDEO consultation (10 min @ 80% share, 1% TDS deducted)',
+                    'createdAt' => date('c')
+                ],
+                [
+                    'id' => 'le_02',
+                    'type' => 'EARNING_CREDIT',
+                    'amountInr' => '332.64',
+                    'balanceAfterInr' => '18024.80',
+                    'status' => 'AVAILABLE',
+                    'description' => 'AUDIO consultation (12 min @ 80% share, 1% TDS deducted)',
+                    'createdAt' => date('c', strtotime('-1 hour'))
+                ]
+            ],
+            'withdrawals' => [
+                [
+                    'id' => 'wdr_01',
+                    'requestNumber' => 'NA-WDR-8921',
+                    'amountInr' => '5000.00',
+                    'tdsAmountInr' => '50.00',
+                    'netAmountInr' => '4950.00',
+                    'status' => 'APPROVED',
+                    'requestedAt' => date('c', strtotime('-1 day'))
+                ]
             ]
         ]
+    ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 5c. Vendor Partner Application (partner/apply)
+// -------------------------------------------------------------
+if ($path === 'partner/apply' && $method === 'POST') {
+    $appsFile = $dataDir . '/partner_applications.json';
+    $apps = loadJson($appsFile, []);
+    $appId = 'app_' . time();
+    $body['id'] = $appId;
+    $body['createdAt'] = date('c');
+    $body['status'] = 'RECEIVED';
+    $apps[] = $body;
+    saveJson($appsFile, $apps);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Partner application submitted successfully.',
+        'applicationId' => $appId
+    ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 5d. Vendor Partner Availability Update (partner/availability)
+// -------------------------------------------------------------
+if ($path === 'partner/availability' && in_array($method, ['POST', 'PATCH'])) {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Availability updated successfully.'
+    ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 5e. Vendor Partner Bank Account (partner/bank-account)
+// -------------------------------------------------------------
+if ($path === 'partner/bank-account' && $method === 'POST') {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Bank account updated and verified for settlements.'
+    ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 5f. Vendor Partner Withdraw (partner/withdraw)
+// -------------------------------------------------------------
+if ($path === 'partner/withdraw' && $method === 'POST') {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Withdrawal request created successfully.'
     ]);
     exit();
 }

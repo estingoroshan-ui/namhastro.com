@@ -64,6 +64,8 @@ interface DashboardData {
     netEarningsInr: string;
     withdrawableBalancePaise: number;
     withdrawableBalanceInr: string;
+    withdrawablePaise?: number;
+    withdrawableInr?: string;
   };
   pendingRequestsCount: number;
   pendingRequests: Array<{
@@ -269,7 +271,24 @@ export default function AstrologerPartnerPage() {
       });
       if (res.ok) {
         const json = await res.json();
-        setDashboardData(json.data);
+        if (json.data) {
+          const d = json.data;
+          setDashboardData({
+            profile: { ...DEMO_DASHBOARD_DATA.profile, ...(d.profile || {}) },
+            earnings: {
+              ...DEMO_DASHBOARD_DATA.earnings,
+              ...(d.earnings || {}),
+              withdrawableBalanceInr: d.earnings?.withdrawableBalanceInr || d.earnings?.withdrawableInr || DEMO_DASHBOARD_DATA.earnings.withdrawableBalanceInr,
+              withdrawableBalancePaise: d.earnings?.withdrawableBalancePaise || d.earnings?.withdrawablePaise || DEMO_DASHBOARD_DATA.earnings.withdrawableBalancePaise,
+            },
+            pendingRequestsCount: d.pendingRequestsCount ?? (d.pendingRequests?.length || 0),
+            pendingRequests: Array.isArray(d.pendingRequests) ? d.pendingRequests : [],
+            waitingQueueCount: d.waitingQueueCount ?? (d.waitingQueue?.length || 0),
+            waitingQueue: Array.isArray(d.waitingQueue) ? d.waitingQueue : [],
+            bankAccountConfigured: d.bankAccountConfigured ?? true,
+            bankAccountVerified: d.bankAccountVerified ?? true,
+          });
+        }
       }
     } catch (err: any) {
       console.error("Failed to load partner dashboard:", err);
@@ -445,59 +464,70 @@ export default function AstrologerPartnerPage() {
       loadDashboard();
       loadEarnings();
 
-      // Listen for incoming Audio/Video/Chat consultations
-      const socket = io(API_BASE, {
-        auth: { token: `Bearer ${token}` },
-        transports: ["websocket", "polling"],
-      });
+      let socket: any = null;
+      try {
+        if (typeof io === "function") {
+          socket = io(API_BASE || undefined, {
+            auth: { token: `Bearer ${token}` },
+            transports: ["websocket", "polling"],
+            timeout: 5000,
+          });
 
-      const handleIncoming = (data: any) => {
-        setIncomingCall({
-          consultationId: data.consultationId,
-          customerName: data.customerName || "Devotee / Customer",
-          type: data.type || "AUDIO",
-          ratePaisePerMinute: data.ratePaisePerMinute || 3500,
-          concern: data.concern || "Vedic Astrological Guidance",
-          timeoutSeconds: 30,
-        });
+          const handleIncoming = (data: any) => {
+            setIncomingCall({
+              consultationId: data.consultationId,
+              customerName: data.customerName || "Devotee / Customer",
+              type: data.type || "AUDIO",
+              ratePaisePerMinute: data.ratePaisePerMinute || 3500,
+              concern: data.concern || "Vedic Astrological Guidance",
+              timeoutSeconds: 30,
+            });
 
-        // Trigger gentle astrological ringtone
-        try {
-          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioCtx) {
-            const ctx = new AudioCtx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.25);
-            gain.gain.setValueAtTime(0.2, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.85);
-          }
-        } catch (e) { }
+            // Trigger gentle astrological ringtone
+            try {
+              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.85);
+              }
+            } catch (e) { }
 
-        let remain = 30;
-        if (callCountdownRef.current) clearInterval(callCountdownRef.current);
-        callCountdownRef.current = setInterval(() => {
-          remain -= 1;
-          if (remain <= 0) {
-            clearInterval(callCountdownRef.current!);
-            setIncomingCall(null);
-          } else {
-            setIncomingCall((prev) => (prev ? { ...prev, timeoutSeconds: remain } : null));
-          }
-        }, 1000);
-      };
+            let remain = 30;
+            if (callCountdownRef.current) clearInterval(callCountdownRef.current);
+            callCountdownRef.current = setInterval(() => {
+              remain -= 1;
+              if (remain <= 0) {
+                clearInterval(callCountdownRef.current!);
+                setIncomingCall(null);
+              } else {
+                setIncomingCall((prev) => (prev ? { ...prev, timeoutSeconds: remain } : null));
+              }
+            }, 1000);
+          };
 
-      socket.on("call:incoming", handleIncoming);
-      socket.on("consultation:incoming", handleIncoming);
+          socket.on("call:incoming", handleIncoming);
+          socket.on("consultation:incoming", handleIncoming);
+        }
+      } catch (err) {
+        console.warn("Socket connection initialized in offline mode:", err);
+      }
 
       return () => {
-        socket.disconnect();
+        if (socket) {
+          try {
+            socket.disconnect();
+          } catch {}
+        }
         if (callCountdownRef.current) clearInterval(callCountdownRef.current);
       };
     }
@@ -676,7 +706,9 @@ export default function AstrologerPartnerPage() {
       });
       if (res.ok) {
         const json = await res.json();
-        setEarningsDetails(json.data);
+        if (json && json.data && json.data.summary) {
+          setEarningsDetails(json.data);
+        }
       }
     } catch (err) {
       console.error("Failed to load earnings:", err);
@@ -939,7 +971,7 @@ export default function AstrologerPartnerPage() {
               <div style={{ display: "flex", gap: "0.5rem", borderBlockEnd: "1px solid var(--border)", marginBlockEnd: "1.25rem", overflowX: "auto" }}>
                 {[
                   { id: "dashboard", label: "Dashboard & KPIs" },
-                  { id: "requests", label: `Incoming Requests (${dashboardData.pendingRequestsCount})` },
+                  { id: "requests", label: `Incoming Requests (${dashboardData.pendingRequestsCount ?? 0})` },
                   { id: "earnings", label: "Earnings & Payouts" },
                   { id: "rates", label: "My Consultation Rates" },
                   { id: "bank", label: "Bank Account & KYC" },
@@ -971,7 +1003,7 @@ export default function AstrologerPartnerPage() {
                     <div className="surface-card">
                       <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)", textTransform: "uppercase" }}>Total Consultations</span>
                       <strong style={{ display: "block", fontSize: "1.8rem", color: "var(--royal-purple)", marginBlock: "0.2rem" }}>
-                        {dashboardData.profile.totalConsultations}
+                        {dashboardData.profile?.totalConsultations ?? 0}
                       </strong>
                       <span style={{ fontSize: "0.75rem", color: "var(--online)" }}>Verified Sessions Completed</span>
                     </div>
@@ -979,15 +1011,15 @@ export default function AstrologerPartnerPage() {
                     <div className="surface-card">
                       <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)", textTransform: "uppercase" }}>Gross Revenue</span>
                       <strong style={{ display: "block", fontSize: "1.8rem", color: "var(--royal-purple)", marginBlock: "0.2rem" }}>
-                        ₹{dashboardData.earnings.grossRevenueInr}
+                        ₹{dashboardData.earnings?.grossRevenueInr ?? "0.00"}
                       </strong>
-                      <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>Platform fee: {dashboardData.earnings.commissionPercent}%</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>Platform fee: {dashboardData.earnings?.commissionPercent ?? "20.0"}%</span>
                     </div>
 
                     <div className="surface-card">
                       <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)", textTransform: "uppercase" }}>Net Partner Earnings</span>
                       <strong style={{ display: "block", fontSize: "1.8rem", color: "var(--royal-purple)", marginBlock: "0.2rem" }}>
-                        ₹{dashboardData.earnings.netEarningsInr}
+                        ₹{dashboardData.earnings?.netEarningsInr ?? "0.00"}
                       </strong>
                       <span style={{ fontSize: "0.75rem", color: "var(--online)" }}>Withdrawable immediately</span>
                     </div>
@@ -995,7 +1027,7 @@ export default function AstrologerPartnerPage() {
                     <div className="surface-card" style={{ borderColor: "var(--champagne-gold)", backgroundColor: "var(--ivory)" }}>
                       <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)", textTransform: "uppercase" }}>Payout Ready Balance</span>
                       <strong style={{ display: "block", fontSize: "1.8rem", color: "var(--saffron)", marginBlock: "0.2rem" }}>
-                        ₹{dashboardData.earnings.withdrawableBalanceInr}
+                        ₹{dashboardData.earnings?.withdrawableBalanceInr || dashboardData.earnings?.withdrawableInr || "0.00"}
                       </strong>
                       <button
                         type="button"
@@ -1009,7 +1041,7 @@ export default function AstrologerPartnerPage() {
                   </div>
 
                   {/* Consultation Request Highlight */}
-                  {dashboardData.pendingRequests.length > 0 ? (
+                  {(dashboardData.pendingRequests?.length ?? 0) > 0 ? (
                     <div className="surface-card" style={{ borderColor: "var(--saffron)", backgroundColor: "rgba(245,158,11,0.06)", marginBlockEnd: "1.5rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: "0.75rem" }}>
                         <h2 style={{ fontSize: "1.1rem", color: "var(--royal-purple)", display: "flex", alignItems: "center", gap: "0.45rem" }}>
@@ -1017,7 +1049,7 @@ export default function AstrologerPartnerPage() {
                         </h2>
                         <span className="status-pill status-live">30s Countdown</span>
                       </div>
-                      {dashboardData.pendingRequests.map((req) => (
+                      {(dashboardData.pendingRequests || []).map((req) => (
                         <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", background: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                           <div>
                             <strong style={{ display: "block", fontSize: "1.05rem" }}>{req.customer.fullName}</strong>
@@ -1054,7 +1086,7 @@ export default function AstrologerPartnerPage() {
                   <h2 className="serif-heading" style={{ fontSize: "1.3rem", marginBlockEnd: "1rem" }}>
                     Active Consultations &amp; Waiting Queue
                   </h2>
-                  {dashboardData.pendingRequests.length === 0 ? (
+                  {(dashboardData.pendingRequests?.length ?? 0) === 0 ? (
                     <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "var(--ink-subtle)" }}>
                       <Clock size={36} style={{ margin: "0 auto 0.75rem", opacity: 0.5 }} />
                       <p style={{ fontSize: "0.95rem" }}>No pending consultation requests at this moment.</p>
@@ -1062,7 +1094,7 @@ export default function AstrologerPartnerPage() {
                     </div>
                   ) : (
                     <div style={{ display: "grid", gap: "0.75rem" }}>
-                      {dashboardData.pendingRequests.map((req) => (
+                      {(dashboardData.pendingRequests || []).map((req) => (
                         <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
                           <div>
                             <strong>{req.customer.fullName}</strong>
@@ -1111,56 +1143,56 @@ export default function AstrologerPartnerPage() {
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TODAY&apos;S EARNINGS</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.todayEarningsInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.todayEarningsInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>YESTERDAY</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-muted)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.yesterdayEarningsInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.yesterdayEarningsInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>THIS WEEK</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.thisWeekEarningsInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.thisWeekEarningsInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>THIS MONTH</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--royal-purple)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.thisMonthEarningsInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.thisMonthEarningsInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "rgba(22,163,74,0.06)", borderRadius: "var(--radius-sm)", border: "1px solid rgba(22,163,74,0.3)" }}>
                       <span style={{ fontSize: "0.72rem", color: "#16A34A", fontWeight: 700 }}>AVAILABLE FOR PAYOUT</span>
                       <strong style={{ display: "block", fontSize: "1.45rem", color: "#16A34A", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings.withdrawableBalanceInr}
+                        ₹{earningsDetails?.summary?.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings?.withdrawableBalanceInr ?? dashboardData.earnings?.withdrawableInr ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>RESERVED IN PAYOUT</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "#D97706", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.reservedWithdrawalInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.reservedWithdrawalInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TOTAL DISBURSED</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-muted)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.completedWithdrawalsInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.completedWithdrawalsInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
 
                     <div style={{ padding: "0.95rem 1.15rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: "0.72rem", color: "var(--ink-subtle)", fontWeight: 600 }}>TDS WITHHELD (1%)</span>
                       <strong style={{ display: "block", fontSize: "1.35rem", color: "var(--ink-subtle)", marginBlockStart: "0.2rem" }}>
-                        ₹{earningsDetails?.summary.tdsDeductedInr?.toFixed(2) ?? "0.00"}
+                        ₹{earningsDetails?.summary?.tdsDeductedInr?.toFixed(2) ?? "0.00"}
                       </strong>
                     </div>
                   </div>
@@ -1371,23 +1403,23 @@ export default function AstrologerPartnerPage() {
                         <div style={{ display: "grid", gap: "0.6rem", fontSize: "0.85rem" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
                             <span style={{ color: "var(--ink-subtle)" }}>Bank Name</span>
-                            <strong>{earningsDetails.bankAccount.bankName}</strong>
+                            <strong>{earningsDetails.bankAccount.bankName || "HDFC Bank Ltd"}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
                             <span style={{ color: "var(--ink-subtle)" }}>Beneficiary Name</span>
-                            <strong>{earningsDetails.bankAccount.accountHolderName}</strong>
+                            <strong>{earningsDetails.bankAccount.accountHolderName || "Partner"}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
                             <span style={{ color: "var(--ink-subtle)" }}>Account Number</span>
-                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.accountNumberMasked}</strong>
+                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.accountNumberMasked || "•••• •••• 7890"}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
                             <span style={{ color: "var(--ink-subtle)" }}>IFSC Code</span>
-                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.ifscCode}</strong>
+                            <strong style={{ fontFamily: "monospace" }}>{earningsDetails.bankAccount.ifscCode || "HDFC0001234"}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
                             <span style={{ color: "var(--ink-subtle)" }}>Account Type</span>
-                            <strong>{earningsDetails.bankAccount.accountType}</strong>
+                            <strong>{earningsDetails.bankAccount.accountType || "SAVINGS"}</strong>
                           </div>
                           {earningsDetails.bankAccount.panNumber && (
                             <div style={{ display: "flex", justifyContent: "space-between", borderBlockEnd: "1px solid var(--border)", paddingBlockEnd: "0.4rem" }}>
@@ -1559,7 +1591,7 @@ export default function AstrologerPartnerPage() {
                       <div style={{ padding: "0.75rem", background: "var(--ivory)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", fontSize: "0.82rem" }}>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                           <span style={{ color: "var(--ink-subtle)" }}>Available Balance:</span>
-                          <strong style={{ color: "#16A34A" }}>₹{earningsDetails?.summary.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings.withdrawableBalanceInr}</strong>
+                          <strong style={{ color: "#16A34A" }}>₹{earningsDetails?.summary?.availableBalanceInr?.toFixed(2) ?? dashboardData.earnings?.withdrawableBalanceInr ?? dashboardData.earnings?.withdrawableInr ?? "0.00"}</strong>
                         </div>
                       </div>
 
@@ -1568,7 +1600,7 @@ export default function AstrologerPartnerPage() {
                         <input
                           type="number"
                           min="500"
-                          max={Math.min(50000, Number(earningsDetails?.summary.availableBalanceInr ?? dashboardData.earnings.withdrawableBalanceInr))}
+                          max={Math.min(50000, Number(earningsDetails?.summary?.availableBalanceInr ?? dashboardData.earnings?.withdrawableBalanceInr ?? 10000))}
                           className="form-input"
                           value={withdrawAmountInr}
                           onChange={(e) => setWithdrawAmountInr(Number(e.target.value))}
