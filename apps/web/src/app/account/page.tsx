@@ -85,6 +85,9 @@ export default function CustomerDashboardPage() {
     priority: "NORMAL",
   });
 
+  // Appointments state
+  const [appointments, setAppointments] = useState<any[]>([]);
+
   // Profile edit state
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -94,6 +97,64 @@ export default function CustomerDashboardPage() {
   const [editPlace, setEditPlace] = useState("");
   const [editGender, setEditGender] = useState("Male");
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam && CUSTOMER_TABS.some((t) => t.id === tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+
+      const bookedAstro = params.get("booked");
+      const bookedSlot = params.get("slot");
+      const bookedSlug = params.get("slug") || "acharya-raghavendra-sharma";
+
+      const savedApts = localStorage.getItem("namh_appointments");
+      let aptList = savedApts ? JSON.parse(savedApts) : [];
+
+      if (bookedAstro && bookedSlot) {
+        const newApt = {
+          id: "apt_" + Date.now(),
+          bookingNumber: "NA-APT-" + Math.floor(1000 + Math.random() * 9000),
+          astrologerName: bookedAstro,
+          astrologerSlug: bookedSlug,
+          slot: bookedSlot,
+          date: "Today, " + new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+          mode: "HD Video & Audio Call",
+          status: "CONFIRMED",
+          durationMinutes: 30,
+          ratePerMinInr: 35,
+          createdAt: new Date().toISOString(),
+        };
+        if (!aptList.some((a: any) => a.astrologerName === bookedAstro && a.slot === bookedSlot)) {
+          aptList = [newApt, ...aptList];
+          localStorage.setItem("namh_appointments", JSON.stringify(aptList));
+        }
+      }
+
+      if (aptList.length === 0) {
+        const defaultApts = [
+          {
+            id: "apt_init_1",
+            bookingNumber: "NA-APT-20261128-4821",
+            astrologerName: "Acharya Raghavendra Sharma",
+            astrologerSlug: "acharya-raghavendra-sharma",
+            slot: "04:30 PM",
+            date: "Today, " + new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+            mode: "HD Video & Audio Call",
+            status: "CONFIRMED",
+            durationMinutes: 30,
+            ratePerMinInr: 35,
+            createdAt: new Date().toISOString(),
+          },
+        ];
+        aptList = defaultApts;
+        localStorage.setItem("namh_appointments", JSON.stringify(defaultApts));
+      }
+      setAppointments(aptList);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -1582,20 +1643,103 @@ export default function CustomerDashboardPage() {
               )}
 
               {activeTab === "appointments" && (
-                <div className="surface-card" style={{ padding: "1.5rem" }}>
-                  <h2 className="serif-heading" style={{ fontSize: "1.3rem", color: "var(--royal-purple)", marginBottom: "0.5rem" }}>
-                    Upcoming &amp; Past Appointments
-                  </h2>
-                  <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "1rem" }}>
-                    Scheduled 15, 30, and 60-minute Vedic horoscope consultations.
-                  </p>
-                  <div style={{ border: "1px dashed var(--border)", padding: "2rem", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
-                    <Calendar size={32} color="#D4A84F" style={{ margin: "0 auto 0.5rem" }} />
-                    <p style={{ fontSize: "0.84rem", color: "var(--ink)" }}>You have no scheduled appointments.</p>
-                    <Link href="/astrologers" className="btn btn-outline btn-sm" style={{ marginTop: "0.75rem" }}>
-                      Book Consultation Slot
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <div>
+                      <h2 className="serif-heading" style={{ fontSize: "1.3rem", color: "var(--royal-purple)" }}>
+                        Upcoming &amp; Past Appointments
+                      </h2>
+                      <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)" }}>
+                        Scheduled 15, 30, and 60-minute Vedic horoscope consultations.
+                      </p>
+                    </div>
+                    <Link href="/astrologers" className="btn btn-gold btn-sm">
+                      <Plus size={14} /> Book Another Slot
                     </Link>
                   </div>
+
+                  {appointments.length === 0 ? (
+                    <div className="surface-card" style={{ border: "1px dashed var(--border)", padding: "2rem", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+                      <Calendar size={32} color="#D4A84F" style={{ margin: "0 auto 0.5rem" }} />
+                      <p style={{ fontSize: "0.84rem", color: "var(--ink)" }}>You have no scheduled appointments.</p>
+                      <Link href="/astrologers" className="btn btn-outline btn-sm" style={{ marginTop: "0.75rem" }}>
+                        Book Consultation Slot
+                      </Link>
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gap: "0.85rem" }}>
+                      {appointments.map((apt) => (
+                        <div
+                          key={apt.id}
+                          className="surface-card"
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "1rem",
+                            borderLeft: "4px solid var(--champagne-gold)",
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  fontWeight: 700,
+                                  backgroundColor: "#16A34A",
+                                  color: "#FFFFFF",
+                                  padding: "0.15rem 0.55rem",
+                                  borderRadius: "9999px",
+                                }}
+                              >
+                                {apt.status}
+                              </span>
+                              <strong style={{ fontSize: "1rem", color: "var(--royal-purple)" }}>
+                                {apt.astrologerName}
+                              </strong>
+                              <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>
+                                ({apt.bookingNumber})
+                              </span>
+                            </div>
+
+                            <div style={{ fontSize: "0.82rem", color: "var(--ink-muted)", display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                                <Calendar size={14} color="#D4A84F" /> {apt.date}
+                              </span>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                                <Clock size={14} color="#351044" /> {apt.slot} IST ({apt.durationMinutes} Mins)
+                              </span>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                                <Sparkles size={14} color="#B87314" /> {apt.mode}
+                              </span>
+                            </div>
+
+                            <div style={{ fontSize: "0.74rem", color: "#166534", marginTop: "0.35rem", fontWeight: 600 }}>
+                              ✓ Birth Profile Attached: {user?.fullName || "User"} (DOB: {user?.profile?.dateOfBirth || "Available"})
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <Link
+                              href={`/consultation/call?mode=video&astrologer=${apt.astrologerSlug}`}
+                              className="btn btn-purple btn-sm"
+                              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                            >
+                              🎥 Join Consultation Room
+                            </Link>
+                            <Link
+                              href={`/consultation/chat?astrologer=${apt.astrologerSlug}`}
+                              className="btn btn-outline btn-sm"
+                              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                            >
+                              💬 Open Chat
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -193,7 +193,7 @@ export default async function AstrologerProfilePage({
                 {slots.map((slot) => (
                   <Link
                     key={slot}
-                    href="/account"
+                    href={`/account?tab=appointments&booked=${encodeURIComponent(astrologer.name)}&slug=${encodeURIComponent(astrologer.slug)}&slot=${encodeURIComponent(slot)}`}
                     className="btn btn-outline btn-sm"
                     style={{ justifyContent: "center" }}
                   >
