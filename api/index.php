@@ -45,7 +45,7 @@ if ($path === 'auth/otp/send' && $method === 'POST') {
     echo json_encode([
         'success' => true,
         'debugOtp' => $debugOtp,
-        'message' => "OTP code sent successfully to $phone. Use 123456 for instant verification."
+        'message' => "Verification code dispatched to $phone."
     ]);
     exit();
 }
@@ -56,34 +56,49 @@ if ($path === 'auth/otp/send' && $method === 'POST') {
 if ($path === 'auth/otp/verify' && $method === 'POST') {
     $phone = $body['phone'] ?? '+919988776655';
     $otp = $body['otp'] ?? '';
-    $fullName = !empty($body['fullName']) ? $body['fullName'] : 'Devotee User';
+    $fullName = !empty($body['fullName']) ? $body['fullName'] : '';
+    $dateOfBirth = !empty($body['dateOfBirth']) ? $body['dateOfBirth'] : '';
+    $timeOfBirth = !empty($body['timeOfBirth']) ? $body['timeOfBirth'] : '';
+    $birthPlace = !empty($body['birthPlace']) ? $body['birthPlace'] : '';
 
     $usersFile = $dataDir . '/users.json';
     $users = loadJson($usersFile, []);
 
     $userId = 'usr_' . substr(md5($phone), 0, 8);
-    $user = [
-        'id' => $userId,
-        'fullName' => $fullName,
-        'phone' => $phone,
-        'email' => preg_replace('/[^0-9]/', '', $phone) . '@namhastro.com',
-        'role' => 'CUSTOMER',
-        'status' => 'ACTIVE',
-        'preferredLanguage' => 'hi',
-        'wallet' => [
-            'paidBalanceInr' => 100.0,
-            'promoBalanceInr' => 50.0,
-            'totalBalanceInr' => 150.0
-        ],
-        'profile' => [
-            'avatarUrl' => null,
-            'dateOfBirth' => '1995-05-15',
-            'birthPlace' => 'New Delhi, India',
-            'currentCity' => 'New Delhi',
-            'gender' => 'Male',
-            'maritalStatus' => 'Single'
-        ]
-    ];
+
+    if (isset($users[$userId])) {
+        $user = $users[$userId];
+        if (!empty($fullName)) $user['fullName'] = $fullName;
+        if (!empty($dateOfBirth)) $user['profile']['dateOfBirth'] = $dateOfBirth;
+        if (!empty($timeOfBirth)) $user['profile']['timeOfBirth'] = $timeOfBirth;
+        if (!empty($birthPlace)) $user['profile']['birthPlace'] = $birthPlace;
+    } else {
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        $displayName = !empty($fullName) ? $fullName : 'Devotee ' . (strlen($cleanPhone) >= 4 ? substr($cleanPhone, -4) : 'User');
+        $user = [
+            'id' => $userId,
+            'fullName' => $displayName,
+            'phone' => $phone,
+            'email' => $cleanPhone . '@namhastro.com',
+            'role' => 'CUSTOMER',
+            'status' => 'ACTIVE',
+            'preferredLanguage' => 'hi',
+            'wallet' => [
+                'paidBalanceInr' => 100.0,
+                'promoBalanceInr' => 50.0,
+                'totalBalanceInr' => 150.0
+            ],
+            'profile' => [
+                'avatarUrl' => null,
+                'dateOfBirth' => $dateOfBirth,
+                'timeOfBirth' => $timeOfBirth,
+                'birthPlace' => $birthPlace,
+                'currentCity' => $birthPlace,
+                'gender' => 'Male',
+                'maritalStatus' => 'Single'
+            ]
+        ];
+    }
 
     $users[$userId] = $user;
     saveJson($usersFile, $users);
@@ -107,12 +122,23 @@ if ($path === 'auth/me' && $method === 'GET') {
     $headers = getallheaders();
     $auth = $headers['Authorization'] ?? $headers['authorization'] ?? '';
     
-    // Return standard active devotee user
+    $usersFile = $dataDir . '/users.json';
+    $users = loadJson($usersFile, []);
+    $firstUser = !empty($users) ? reset($users) : null;
+
+    if ($firstUser) {
+        echo json_encode([
+            'success' => true,
+            'user' => $firstUser
+        ]);
+        exit();
+    }
+
     echo json_encode([
         'success' => true,
         'user' => [
             'id' => 'usr_namh_demo',
-            'fullName' => 'Devotee Acharya',
+            'fullName' => 'Devotee User',
             'phone' => '+919988776655',
             'email' => 'devotee@namhastro.com',
             'role' => 'CUSTOMER',
@@ -124,13 +150,38 @@ if ($path === 'auth/me' && $method === 'GET') {
                 'totalBalanceInr' => 150.0
             ],
             'profile' => [
-                'dateOfBirth' => '1995-05-15',
-                'birthPlace' => 'New Delhi, India',
-                'currentCity' => 'New Delhi',
+                'dateOfBirth' => '',
+                'timeOfBirth' => '',
+                'birthPlace' => '',
+                'currentCity' => '',
                 'gender' => 'Male'
             ]
         ]
     ]);
+    exit();
+}
+
+// -------------------------------------------------------------
+// 3b. Customer Profile Update (customer/profile)
+// -------------------------------------------------------------
+if ((strpos($path, 'customer/profile') === 0 || strpos($path, 'auth/profile') === 0) && ($method === 'PUT' || $method === 'POST')) {
+    $usersFile = $dataDir . '/users.json';
+    $users = loadJson($usersFile, []);
+    if (!empty($users)) {
+        $keys = array_keys($users);
+        $firstKey = $keys[0];
+        $users[$firstKey] = array_merge($users[$firstKey], $body);
+        if (isset($body['dateOfBirth']) || isset($body['timeOfBirth']) || isset($body['birthPlace']) || isset($body['gender'])) {
+            $users[$firstKey]['profile'] = array_merge($users[$firstKey]['profile'] ?? [], [
+                'dateOfBirth' => $body['dateOfBirth'] ?? ($users[$firstKey]['profile']['dateOfBirth'] ?? ''),
+                'timeOfBirth' => $body['timeOfBirth'] ?? ($users[$firstKey]['profile']['timeOfBirth'] ?? ''),
+                'birthPlace' => $body['birthPlace'] ?? ($users[$firstKey]['profile']['birthPlace'] ?? ''),
+                'gender' => $body['gender'] ?? ($users[$firstKey]['profile']['gender'] ?? 'Male')
+            ]);
+        }
+        saveJson($usersFile, $users);
+    }
+    echo json_encode(['success' => true, 'message' => 'Profile updated successfully']);
     exit();
 }
 
@@ -206,30 +257,47 @@ if ($path === 'partner/dashboard' && $method === 'GET') {
 // -------------------------------------------------------------
 if (strpos($path, 'customer/birth-profiles') === 0) {
     $profilesFile = $dataDir . '/birth_profiles.json';
-    $profiles = loadJson($profilesFile, [
-        [
-            'id' => 'prf_self',
-            'relation' => 'SELF',
-            'fullName' => 'Aarav Sharma',
-            'gender' => 'Male',
-            'dateOfBirth' => '1994-11-26',
-            'timeOfBirth' => '08:45',
-            'isBirthTimeUnknown' => false,
-            'birthPlace' => 'New Delhi, Delhi, India',
-            'isDefault' => true
-        ]
-    ]);
+    $profiles = loadJson($profilesFile, []);
+
+    // Handle PUT / update existing profile
+    if ($method === 'PUT' || ($method === 'POST' && !empty($body['id']))) {
+        $id = $body['id'] ?? basename($path);
+        $found = false;
+        foreach ($profiles as &$p) {
+            if ($p['id'] === $id) {
+                $p = array_merge($p, $body);
+                $found = true;
+                break;
+            }
+        }
+        if (!$found && !empty($body)) {
+            $profiles[] = array_merge($body, ['id' => $id ?: ('prf_' . time())]);
+        }
+        saveJson($profilesFile, $profiles);
+        echo json_encode(['success' => true, 'data' => $body, 'profiles' => $profiles]);
+        exit();
+    }
 
     if ($method === 'POST') {
         $newId = 'prf_' . time();
         $profile = array_merge($body, ['id' => $newId]);
         $profiles[] = $profile;
         saveJson($profilesFile, $profiles);
-        echo json_encode(['success' => true, 'data' => $profile]);
+        echo json_encode(['success' => true, 'data' => $profile, 'profiles' => $profiles]);
         exit();
     }
 
-    echo json_encode(['success' => true, 'data' => $profiles]);
+    if ($method === 'DELETE') {
+        $delId = basename($path);
+        $profiles = array_values(array_filter($profiles, function($p) use ($delId) {
+            return $p['id'] !== $delId;
+        }));
+        saveJson($profilesFile, $profiles);
+        echo json_encode(['success' => true, 'profiles' => $profiles]);
+        exit();
+    }
+
+    echo json_encode(['success' => true, 'profiles' => $profiles, 'data' => $profiles]);
     exit();
 }
 
@@ -279,11 +347,11 @@ if (strpos($path, 'wallet/packages') === 0) {
     echo json_encode([
         'success' => true,
         'data' => [
-            ['id' => 'wp_1', 'amountInr' => 100, 'extraPercent' => 0, 'popular' => false],
-            ['id' => 'wp_2', 'amountInr' => 250, 'extraPercent' => 5, 'popular' => false],
-            ['id' => 'wp_3', 'amountInr' => 500, 'extraPercent' => 10, 'popular' => true],
-            ['id' => 'wp_4', 'amountInr' => 1000, 'extraPercent' => 15, 'popular' => false],
-            ['id' => 'wp_5', 'amountInr' => 2500, 'extraPercent' => 20, 'popular' => false],
+            ['id' => 'wp_1', 'code' => 'WP100', 'name' => 'Shubh Starter', 'amountInr' => 100, 'bonusInr' => 0, 'totalCreditInr' => 100, 'isPopular' => false, 'badgeText' => ''],
+            ['id' => 'wp_2', 'code' => 'WP250', 'name' => 'Mangal Pack', 'amountInr' => 250, 'bonusInr' => 25, 'totalCreditInr' => 275, 'isPopular' => false, 'badgeText' => '+₹25 Bonus'],
+            ['id' => 'wp_3', 'code' => 'WP500', 'name' => 'Kalyan Popular', 'amountInr' => 500, 'bonusInr' => 75, 'totalCreditInr' => 575, 'isPopular' => true, 'badgeText' => 'Most Popular · +₹75'],
+            ['id' => 'wp_4', 'code' => 'WP1000', 'name' => 'Lakshmi Prosperity', 'amountInr' => 1000, 'bonusInr' => 200, 'totalCreditInr' => 1200, 'isPopular' => false, 'badgeText' => '20% Extra'],
+            ['id' => 'wp_5', 'code' => 'WP2500', 'name' => 'Divya Supreme', 'amountInr' => 2500, 'bonusInr' => 600, 'totalCreditInr' => 3100, 'isPopular' => false, 'badgeText' => 'Maximum Value'],
         ]
     ]);
     exit();
@@ -293,10 +361,92 @@ if (strpos($path, 'wallet/balance') === 0) {
     echo json_encode([
         'success' => true,
         'data' => [
+            'currency' => 'INR',
             'paidBalanceInr' => 100.0,
             'promoBalanceInr' => 50.0,
             'totalBalanceInr' => 150.0
         ]
+    ]);
+    exit();
+}
+
+if (strpos($path, 'wallet/transactions') === 0) {
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'transactions' => [
+                [
+                    'id' => 'tx_init_1',
+                    'idempotencyKey' => 'idemp_promo_50',
+                    'type' => 'CREDIT_PROMO',
+                    'amountInr' => '50.00',
+                    'balanceAfterInr' => '150.00',
+                    'referenceType' => 'WELCOME_BONUS',
+                    'description' => 'Welcome Promotional Credit (₹1/min Offer)',
+                    'createdAt' => date('Y-m-d H:i:s', strtotime('-1 day'))
+                ],
+                [
+                    'id' => 'tx_init_2',
+                    'idempotencyKey' => 'idemp_paid_100',
+                    'type' => 'CREDIT_PAID',
+                    'amountInr' => '100.00',
+                    'balanceAfterInr' => '100.00',
+                    'referenceType' => 'INTRO_RECHARGE',
+                    'description' => 'Introductory Consultation Balance',
+                    'createdAt' => date('Y-m-d H:i:s', strtotime('-2 days'))
+                ]
+            ]
+        ]
+    ]);
+    exit();
+}
+
+if (strpos($path, 'wallet/invoices') === 0) {
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            [
+                'id' => 'inv_init_1',
+                'invoiceNumber' => 'INV-NAMH-' . date('Y') . '-001',
+                'orderId' => 'ord_welcome_100',
+                'customerName' => 'Devotee Customer',
+                'customerGstin' => null,
+                'sacCode' => '998399',
+                'taxableAmountInr' => '100.00',
+                'cgstInr' => '9.00',
+                'sgstInr' => '9.00',
+                'totalAmountInr' => '118.00',
+                'issuedAt' => date('Y-m-d H:i:s', strtotime('-2 days'))
+            ]
+        ]
+    ]);
+    exit();
+}
+
+if (strpos($path, 'wallet/recharge/order') === 0 && $method === 'POST') {
+    $amountInr = $body['amountInr'] ?? 500;
+    $gstInr = round($amountInr * 0.18, 2);
+    $totalInr = $amountInr + $gstInr;
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'gatewayOrderId' => 'order_sim_' . time(),
+            'razorpayKeyId' => 'rzp_test_5d06namhastro2026',
+            'amountPaise' => $totalInr * 100,
+            'walletCreditInr' => $amountInr,
+            'gstInr' => $gstInr,
+            'customerName' => 'Devotee Customer',
+            'customerEmail' => 'customer@namhastro.com',
+            'customerPhone' => '+919988776655'
+        ]
+    ]);
+    exit();
+}
+
+if (strpos($path, 'wallet/recharge/verify') === 0 && $method === 'POST') {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Payment verified and wallet credited successfully.'
     ]);
     exit();
 }

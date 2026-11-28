@@ -42,7 +42,7 @@ interface AuthContextType {
   openLoginModal: () => void;
   closeLoginModal: () => void;
   sendOtp: (phone: string) => Promise<{ success: boolean; debugOtp?: string; message?: string }>;
-  verifyOtp: (phone: string, otp: string, fullName?: string) => Promise<{ success: boolean; error?: string }>;
+  verifyOtp: (phone: string, otp: string, fullName?: string, birthDetails?: { dateOfBirth?: string; timeOfBirth?: string; birthPlace?: string }) => Promise<{ success: boolean; error?: string }>;
   loginWithPassword: (identifier: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   registerWithEmail: (data: { fullName: string; email: string; password: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -111,13 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const verifyOtp = async (phone: string, otp: string, fullName?: string) => {
+  const verifyOtp = async (phone: string, otp: string, fullName?: string, birthDetails?: { dateOfBirth?: string; timeOfBirth?: string; birthPlace?: string }) => {
     try {
       const base = getApiBase();
       const res = await fetch(`${base}/api/v1/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp, fullName }),
+        body: JSON.stringify({ phone, otp, fullName, ...(birthDetails || {}) }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -127,6 +127,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("namh_auth_token", data.tokens.accessToken);
           localStorage.setItem("namh_refresh_token", data.tokens.refreshToken);
           localStorage.setItem("namh_user", JSON.stringify(data.user));
+
+          // Ensure birth profile matches
+          const existingProfiles = localStorage.getItem("namh_birth_profiles");
+          if (!existingProfiles) {
+            const selfProfile = [
+              {
+                id: "prf_self",
+                relation: "SELF",
+                fullName: data.user.fullName || "Customer",
+                gender: data.user.profile?.gender || "Male",
+                dateOfBirth: data.user.profile?.dateOfBirth || birthDetails?.dateOfBirth || "",
+                timeOfBirth: data.user.profile?.timeOfBirth || birthDetails?.timeOfBirth || "",
+                birthPlace: data.user.profile?.birthPlace || birthDetails?.birthPlace || "",
+                isDefault: true,
+              },
+            ];
+            localStorage.setItem("namh_birth_profiles", JSON.stringify(selfProfile));
+          }
+
           closeLoginModal();
           return { success: true };
         }
@@ -138,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Seamless verification fallback (accepts 123456 or any 6-digit code)
     if (otp === "123456" || otp.length === 6) {
       const cleanPhone = phone.replace(/\D/g, "");
-      const devoteeName = fullName || (cleanPhone.length >= 4 ? `Devotee ${cleanPhone.slice(-4)}` : "Aarav Sharma");
+      const devoteeName = fullName || (cleanPhone.length >= 4 ? `Devotee ${cleanPhone.slice(-4)}` : "Customer");
       const fallbackUser: CustomerUser = {
         id: "usr_" + (cleanPhone || Date.now().toString()),
         fullName: devoteeName,
@@ -154,9 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         profile: {
           avatarUrl: null,
-          dateOfBirth: "1994-11-26",
-          birthPlace: "New Delhi, Delhi, India",
-          currentCity: "New Delhi",
+          dateOfBirth: birthDetails?.dateOfBirth || null,
+          timeOfBirth: birthDetails?.timeOfBirth || null,
+          birthPlace: birthDetails?.birthPlace || null,
+          currentCity: birthDetails?.birthPlace || null,
           gender: "Male",
           maritalStatus: "Single",
         },
@@ -167,6 +187,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("namh_auth_token", demoToken);
       localStorage.setItem("namh_refresh_token", "refresh_" + demoToken);
       localStorage.setItem("namh_user", JSON.stringify(fallbackUser));
+
+      const existingProfiles = localStorage.getItem("namh_birth_profiles");
+      if (!existingProfiles) {
+        const selfProfile = [
+          {
+            id: "prf_self",
+            relation: "SELF",
+            fullName: devoteeName,
+            gender: "Male",
+            dateOfBirth: birthDetails?.dateOfBirth || "",
+            timeOfBirth: birthDetails?.timeOfBirth || "",
+            birthPlace: birthDetails?.birthPlace || "",
+            isDefault: true,
+          },
+        ];
+        localStorage.setItem("namh_birth_profiles", JSON.stringify(selfProfile));
+      }
+
       closeLoginModal();
       return { success: true };
     }

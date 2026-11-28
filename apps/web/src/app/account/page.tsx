@@ -50,6 +50,19 @@ export default function CustomerDashboardPage() {
   const [birthProfiles, setBirthProfiles] = useState<any[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<{
+    id: string;
+    relation: string;
+    fullName: string;
+    gender: string;
+    dateOfBirth: string;
+    timeOfBirth: string;
+    isBirthTimeUnknown: boolean;
+    birthPlace: string;
+    isDefault: boolean;
+  } | null>(null);
+
   const [newProfile, setNewProfile] = useState({
     relation: "SELF",
     fullName: "",
@@ -76,6 +89,10 @@ export default function CustomerDashboardPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editLang, setEditLang] = useState("en");
+  const [editDob, setEditDob] = useState("");
+  const [editTob, setEditTob] = useState("");
+  const [editPlace, setEditPlace] = useState("");
+  const [editGender, setEditGender] = useState("Male");
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +100,10 @@ export default function CustomerDashboardPage() {
       setEditName(user.fullName || "");
       setEditEmail(user.email || "");
       setEditLang(user.preferredLanguage || "en");
+      setEditDob(user.profile?.dateOfBirth || "");
+      setEditTob(user.profile?.timeOfBirth || "");
+      setEditPlace(user.profile?.birthPlace || "");
+      setEditGender(user.profile?.gender || "Male");
       fetchBirthProfiles();
       fetchTickets();
     }
@@ -110,24 +131,42 @@ export default function CustomerDashboardPage() {
     const saved = localStorage.getItem("namh_birth_profiles");
     if (saved) {
       try {
-        setBirthProfiles(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const synced = parsed.map((p) => {
+            if ((p.relation === "SELF" || p.isDefault) && user?.profile?.dateOfBirth) {
+              return {
+                ...p,
+                fullName: user.fullName || p.fullName,
+                dateOfBirth: user.profile.dateOfBirth || p.dateOfBirth,
+                timeOfBirth: user.profile.timeOfBirth || p.timeOfBirth,
+                birthPlace: user.profile.birthPlace || p.birthPlace,
+                gender: user.profile.gender || p.gender,
+              };
+            }
+            return p;
+          });
+          setBirthProfiles(synced);
+          setLoadingProfiles(false);
+          return;
+        }
       } catch {}
-    } else {
-      const defaultProfiles = [
-        {
-          id: "bp_self",
-          relation: "SELF",
-          fullName: user?.fullName || "Aarav Sharma",
-          gender: "Male",
-          dateOfBirth: "1994-11-26",
-          timeOfBirth: "08:45 AM",
-          birthPlace: "New Delhi, India",
-          isDefault: true,
-        },
-      ];
-      setBirthProfiles(defaultProfiles);
-      localStorage.setItem("namh_birth_profiles", JSON.stringify(defaultProfiles));
     }
+
+    const defaultProfiles = [
+      {
+        id: "bp_self",
+        relation: "SELF",
+        fullName: user?.fullName || "Customer",
+        gender: user?.profile?.gender || "Male",
+        dateOfBirth: user?.profile?.dateOfBirth || "",
+        timeOfBirth: user?.profile?.timeOfBirth || "",
+        birthPlace: user?.profile?.birthPlace || "",
+        isDefault: true,
+      },
+    ];
+    setBirthProfiles(defaultProfiles);
+    localStorage.setItem("namh_birth_profiles", JSON.stringify(defaultProfiles));
     setLoadingProfiles(false);
   };
 
@@ -273,6 +312,49 @@ export default function CustomerDashboardPage() {
     });
   };
 
+  const handleUpdateBirthProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProfile) return;
+
+    const updated = birthProfiles.map((p) =>
+      p.id === editingProfile.id ? { ...p, ...editingProfile } : p
+    );
+    setBirthProfiles(updated);
+    localStorage.setItem("namh_birth_profiles", JSON.stringify(updated));
+
+    if (editingProfile.relation === "SELF" || editingProfile.isDefault) {
+      setEditName(editingProfile.fullName);
+      setEditDob(editingProfile.dateOfBirth);
+      setEditTob(editingProfile.timeOfBirth);
+      setEditPlace(editingProfile.birthPlace);
+      setEditGender(editingProfile.gender);
+
+      await updateProfile({
+        fullName: editingProfile.fullName,
+        dateOfBirth: editingProfile.dateOfBirth,
+        timeOfBirth: editingProfile.timeOfBirth,
+        birthPlace: editingProfile.birthPlace,
+        gender: editingProfile.gender,
+      });
+    }
+
+    try {
+      if (token) {
+        await fetch(`${API_BASE}/api/v1/customer/birth-profiles/${editingProfile.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editingProfile),
+        }).catch(() => null);
+      }
+    } catch {}
+
+    setShowEditProfileModal(false);
+    setEditingProfile(null);
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
@@ -280,9 +362,30 @@ export default function CustomerDashboardPage() {
       fullName: editName,
       email: editEmail || null,
       preferredLanguage: editLang,
+      dateOfBirth: editDob,
+      timeOfBirth: editTob,
+      birthPlace: editPlace,
+      gender: editGender,
     });
+
+    const updated = birthProfiles.map((p) => {
+      if (p.relation === "SELF" || p.isDefault) {
+        return {
+          ...p,
+          fullName: editName,
+          dateOfBirth: editDob,
+          timeOfBirth: editTob,
+          birthPlace: editPlace,
+          gender: editGender,
+        };
+      }
+      return p;
+    });
+    setBirthProfiles(updated);
+    localStorage.setItem("namh_birth_profiles", JSON.stringify(updated));
+
     if (res.success) {
-      setProfileMsg("Profile updated successfully in database.");
+      setProfileMsg("Profile & Birth details saved successfully.");
     } else {
       setProfileMsg(res.error || "Failed to update profile.");
     }
@@ -474,6 +577,62 @@ export default function CustomerDashboardPage() {
           ) : (
             /* Authenticated Modules */
             <>
+              {/* DOB Alert & Quick Edit Banner */}
+              {(!user.profile?.dateOfBirth || user.profile.dateOfBirth === "1995-05-15") && (
+                <div
+                  style={{
+                    backgroundColor: "rgba(212, 168, 79, 0.12)",
+                    border: "1px solid var(--champagne-gold)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "0.85rem 1.15rem",
+                    marginBottom: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <Sparkles size={20} color="#D4A84F" />
+                    <div>
+                      <strong style={{ fontSize: "0.88rem", color: "var(--royal-purple)", display: "block" }}>
+                        Complete Your Vedic Birth Profile
+                      </strong>
+                      <span style={{ fontSize: "0.78rem", color: "var(--ink-muted)" }}>
+                        Accurate Date of Birth and Time are essential for exact Janam Kundli chart and horoscope predictions.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const selfPrf = birthProfiles.find((p) => p.relation === "SELF") || birthProfiles[0];
+                      if (selfPrf) {
+                        setEditingProfile({
+                          id: selfPrf.id,
+                          relation: selfPrf.relation || "SELF",
+                          fullName: selfPrf.fullName || user?.fullName || "",
+                          gender: selfPrf.gender || "Male",
+                          dateOfBirth: selfPrf.dateOfBirth || "",
+                          timeOfBirth: selfPrf.timeOfBirth || "",
+                          isBirthTimeUnknown: !!selfPrf.isBirthTimeUnknown,
+                          birthPlace: selfPrf.birthPlace || "",
+                          isDefault: !!selfPrf.isDefault,
+                        });
+                        setShowEditProfileModal(true);
+                      } else {
+                        setShowAddProfileModal(true);
+                      }
+                    }}
+                    className="btn btn-gold btn-sm"
+                    style={{ fontSize: "0.78rem", padding: "0.4rem 0.85rem", fontWeight: 700 }}
+                  >
+                    ✏️ Update My Birth Details
+                  </button>
+                </div>
+              )}
+
               {/* TAB 1: OVERVIEW */}
               {activeTab === "overview" && (
                 <div style={{ display: "grid", gap: "1.25rem" }}>
@@ -629,6 +788,74 @@ export default function CustomerDashboardPage() {
                             <option value="hi">हिंदी (Hindi)</option>
                           </select>
                         </div>
+
+                        <div>
+                          <label
+                            htmlFor="profile-gender-select"
+                            style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                          >
+                            Gender
+                          </label>
+                          <select
+                            id="profile-gender-select"
+                            className="form-select"
+                            value={editGender}
+                            onChange={(e) => setEditGender(e.target.value)}
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="profile-dob-input"
+                            style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                          >
+                            Date of Birth (DOB)
+                          </label>
+                          <input
+                            id="profile-dob-input"
+                            type="date"
+                            className="form-input"
+                            value={editDob}
+                            onChange={(e) => setEditDob(e.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="profile-tob-input"
+                            style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                          >
+                            Time of Birth
+                          </label>
+                          <input
+                            id="profile-tob-input"
+                            type="time"
+                            className="form-input"
+                            value={editTob}
+                            onChange={(e) => setEditTob(e.target.value)}
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="profile-place-input"
+                            style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                          >
+                            Birth Place (City, State)
+                          </label>
+                          <input
+                            id="profile-place-input"
+                            type="text"
+                            className="form-input"
+                            value={editPlace}
+                            onChange={(e) => setEditPlace(e.target.value)}
+                            placeholder="e.g. Haridwar, Uttarakhand"
+                          />
+                        </div>
                       </div>
 
                       <button type="submit" className="btn btn-purple btn-sm" style={{ justifySelf: "start" }}>
@@ -714,18 +941,48 @@ export default function CustomerDashboardPage() {
                             </div>
                             <div style={{ fontSize: "0.78rem", color: "var(--ink-muted)", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                               <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                <Calendar size={13} /> {new Date(p.dateOfBirth).toLocaleDateString()}
+                                <Calendar size={13} /> {p.dateOfBirth ? (isNaN(new Date(p.dateOfBirth).getTime()) ? p.dateOfBirth : new Date(p.dateOfBirth).toLocaleDateString()) : "DOB Not Set"}
                               </span>
                               <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                <Clock size={13} /> {p.isBirthTimeUnknown ? "Time Unknown" : p.timeOfBirth || "Not set"}
+                                <Clock size={13} /> {p.isBirthTimeUnknown ? "Time Unknown" : p.timeOfBirth || "Time Not Set"}
                               </span>
                               <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                <MapPin size={13} /> {p.birthPlace}
+                                <MapPin size={13} /> {p.birthPlace || "Place Not Set"}
                               </span>
                             </div>
                           </div>
 
-                          <div style={{ display: "flex", gap: "0.4rem" }}>
+                          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingProfile({
+                                  id: p.id,
+                                  relation: p.relation || "SELF",
+                                  fullName: p.fullName || user?.fullName || "",
+                                  gender: p.gender || "Male",
+                                  dateOfBirth: p.dateOfBirth || "",
+                                  timeOfBirth: p.timeOfBirth || "",
+                                  isBirthTimeUnknown: !!p.isBirthTimeUnknown,
+                                  birthPlace: p.birthPlace || "",
+                                  isDefault: !!p.isDefault,
+                                });
+                                setShowEditProfileModal(true);
+                              }}
+                              className="btn btn-outline btn-sm"
+                              style={{
+                                fontSize: "0.76rem",
+                                padding: "0.35rem 0.65rem",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.25rem",
+                                borderColor: "var(--champagne-gold)",
+                                color: "var(--royal-purple)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              ✏️ Edit Details
+                            </button>
                             {!p.isDefault && (
                               <button
                                 type="button"
@@ -754,6 +1011,191 @@ export default function CustomerDashboardPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Edit Profile Modal */}
+                  {showEditProfileModal && editingProfile && (
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Edit Birth Profile"
+                      style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 1050,
+                        backgroundColor: "rgba(36, 11, 50, 0.75)",
+                        display: "grid",
+                        placeItems: "center",
+                        padding: "1rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          inlineSize: "100%",
+                          maxInlineSize: "28rem",
+                          backgroundColor: "#FFFFFF",
+                          borderRadius: "1rem",
+                          padding: "1.5rem",
+                          maxHeight: "90vh",
+                          overflowY: "auto",
+                        }}
+                      >
+                        <h3 className="serif-heading" style={{ fontSize: "1.3rem", color: "var(--royal-purple)", marginBottom: "0.85rem" }}>
+                          Edit Birth Profile ({editingProfile.relation})
+                        </h3>
+                        <form onSubmit={handleUpdateBirthProfile} style={{ display: "grid", gap: "0.85rem" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                            <div>
+                              <label
+                                htmlFor="edit-profile-relation"
+                                style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                              >
+                                Relation
+                              </label>
+                              <select
+                                id="edit-profile-relation"
+                                className="form-select"
+                                value={editingProfile.relation}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, relation: e.target.value })}
+                              >
+                                <option value="SELF">Self</option>
+                                <option value="SPOUSE">Spouse</option>
+                                <option value="SON">Son</option>
+                                <option value="DAUGHTER">Daughter</option>
+                                <option value="FATHER">Father</option>
+                                <option value="MOTHER">Mother</option>
+                                <option value="OTHER">Other</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor="edit-profile-gender"
+                                style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                              >
+                                Gender
+                              </label>
+                              <select
+                                id="edit-profile-gender"
+                                className="form-select"
+                                value={editingProfile.gender}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, gender: e.target.value })}
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="edit-profile-name"
+                              style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                            >
+                              Full Name
+                            </label>
+                            <input
+                              id="edit-profile-name"
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. Tarun Dhiman"
+                              value={editingProfile.fullName}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, fullName: e.target.value })}
+                              required
+                            />
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                            <div>
+                              <label
+                                htmlFor="edit-profile-dob"
+                                style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                              >
+                                Date of Birth
+                              </label>
+                              <input
+                                id="edit-profile-dob"
+                                type="date"
+                                className="form-input"
+                                value={editingProfile.dateOfBirth}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, dateOfBirth: e.target.value })}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor="edit-profile-tob"
+                                style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                              >
+                                Exact Time of Birth
+                              </label>
+                              <input
+                                id="edit-profile-tob"
+                                type="time"
+                                className="form-input"
+                                value={editingProfile.timeOfBirth}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, timeOfBirth: e.target.value })}
+                                disabled={editingProfile.isBirthTimeUnknown}
+                              />
+                            </div>
+                          </div>
+
+                          <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.78rem", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={editingProfile.isBirthTimeUnknown}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, isBirthTimeUnknown: e.target.checked })}
+                            />
+                            I don&apos;t know the exact time of birth
+                          </label>
+
+                          <div>
+                            <label
+                              htmlFor="edit-profile-place"
+                              style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
+                            >
+                              Birth Place (City, State, Country)
+                            </label>
+                            <input
+                              id="edit-profile-place"
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. Haridwar, Uttarakhand, India"
+                              value={editingProfile.birthPlace}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, birthPlace: e.target.value })}
+                              required
+                            />
+                          </div>
+
+                          <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.78rem", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={editingProfile.isDefault}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, isDefault: e.target.checked })}
+                            />
+                            Set as primary birth profile
+                          </label>
+
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowEditProfileModal(false);
+                                setEditingProfile(null);
+                              }}
+                              className="btn btn-outline btn-sm"
+                            >
+                              Cancel
+                            </button>
+                            <button type="submit" className="btn btn-purple btn-sm">
+                              Update Profile
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
                   )}
 

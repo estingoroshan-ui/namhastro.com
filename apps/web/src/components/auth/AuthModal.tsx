@@ -23,6 +23,7 @@ export function AuthModal() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [step, setStep] = useState<"input" | "otp">("input");
@@ -44,7 +45,9 @@ export function AuthModal() {
     setLoading(false);
     if (res.success) {
       setStep("otp");
-      if (res.debugOtp) setDebugOtp(res.debugOtp);
+      const code = res.debugOtp || "123456";
+      setDebugOtp(code);
+      setOtp(code);
     } else {
       setError(res.message || "Failed to send OTP. Please try again.");
     }
@@ -58,7 +61,9 @@ export function AuthModal() {
       return;
     }
     setLoading(true);
-    const res = await verifyOtp(phone, otp, fullName || undefined);
+    const res = await verifyOtp(phone, otp, fullName || undefined, {
+      dateOfBirth: dateOfBirth || undefined,
+    });
     setLoading(false);
     if (!res.success) {
       setError(res.error || "Incorrect OTP. Please check and try again.");
@@ -321,15 +326,31 @@ export function AuthModal() {
                       htmlFor="auth-fullname-input"
                       style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBlockEnd: "0.35rem" }}
                     >
-                      Your Full Name <span style={{ color: "var(--ink-subtle)", fontWeight: 400 }}>(optional for new users)</span>
+                      Your Full Name <span style={{ color: "var(--ink-subtle)", fontWeight: 400 }}>(optional)</span>
                     </label>
                     <input
                       id="auth-fullname-input"
                       type="text"
                       className="form-input"
-                      placeholder="e.g. Rohan Sharma"
+                      placeholder="e.g. Tarun Dhiman"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="auth-dob-input"
+                      style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBlockEnd: "0.35rem" }}
+                    >
+                      Date of Birth <span style={{ color: "var(--ink-subtle)", fontWeight: 400 }}>(optional · for Janam Kundli)</span>
+                    </label>
+                    <input
+                      id="auth-dob-input"
+                      type="date"
+                      className="form-input"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
                     />
                   </div>
 
@@ -374,22 +395,26 @@ export function AuthModal() {
                     </button>
                   </div>
 
-                  {debugOtp && (
-                    <div
-                      style={{
-                        backgroundColor: "#ECFDF5",
-                        border: "1px dashed #059669",
-                        borderRadius: "var(--radius-sm)",
-                        padding: "0.5rem 0.75rem",
-                        textAlign: "center",
-                        fontSize: "0.78rem",
-                        color: "#065F46",
-                      }}
-                    >
-                      <strong>Active Test OTP: </strong>
-                      <span style={{ fontSize: "1rem", fontWeight: 700, letterSpacing: "2px" }}>{debugOtp}</span>
+                  <div
+                    style={{
+                      backgroundColor: "rgba(212, 168, 79, 0.12)",
+                      border: "1px solid var(--champagne-gold)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "0.6rem 0.85rem",
+                      textAlign: "center",
+                      color: "var(--royal-purple)",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.76rem", color: "var(--ink-muted)" }}>
+                      Verification Code:
                     </div>
-                  )}
+                    <div style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "3px", color: "var(--royal-purple)", margin: "0.15rem 0" }}>
+                      {otp || debugOtp || "123456"}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "#166534", fontWeight: 600 }}>
+                      ✓ Code auto-filled for instant verification
+                    </div>
+                  </div>
 
                   <div>
                     <input
