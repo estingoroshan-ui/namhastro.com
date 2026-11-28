@@ -138,9 +138,9 @@ export function SiteHeader() {
             </Link>
 
             {user ? (
-              <Link href="/account" className="login-btn" title={`Signed in as ${user.fullName}`}>
+              <Link href="/account" className="login-btn" title={user.fullName ? `Signed in as ${user.fullName}` : "My Account"}>
                 <User size={15} />
-                <span>{user.fullName.split(" ")[0]}</span>
+                <span>{user.fullName ? user.fullName.split(" ")[0] : "Account"}</span>
               </Link>
             ) : (
               <button

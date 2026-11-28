@@ -157,15 +157,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Seamless verification fallback (accepts 123456 or any 6-digit code)
     if (otp === "123456" || otp.length === 6) {
       const cleanPhone = phone.replace(/\D/g, "");
-      const devoteeName = fullName || (cleanPhone.length >= 4 ? `Devotee ${cleanPhone.slice(-4)}` : "Customer");
       const fallbackUser: CustomerUser = {
         id: "usr_" + (cleanPhone || Date.now().toString()),
-        fullName: devoteeName,
+        fullName: fullName || "",
         phone: phone,
-        email: `${cleanPhone || "user"}@namhastro.com`,
+        email: "",
         role: "CUSTOMER",
         status: "ACTIVE",
-        preferredLanguage: "hi",
+        preferredLanguage: "",
         wallet: {
           paidBalanceInr: 100.0,
           promoBalanceInr: 50.0,
@@ -177,8 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           timeOfBirth: birthDetails?.timeOfBirth || null,
           birthPlace: birthDetails?.birthPlace || null,
           currentCity: birthDetails?.birthPlace || null,
-          gender: "Male",
-          maritalStatus: "Single",
+          gender: (birthDetails as any)?.gender || "",
+          maritalStatus: "",
         },
       };
       const demoToken = "token_" + Date.now();
@@ -194,8 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           {
             id: "prf_self",
             relation: "SELF",
-            fullName: devoteeName,
-            gender: "Male",
+            fullName: fullName || "",
+            gender: (birthDetails as any)?.gender || "",
             dateOfBirth: birthDetails?.dateOfBirth || "",
             timeOfBirth: birthDetails?.timeOfBirth || "",
             birthPlace: birthDetails?.birthPlace || "",

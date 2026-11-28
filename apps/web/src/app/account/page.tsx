@@ -91,11 +91,11 @@ export default function CustomerDashboardPage() {
   // Profile edit state
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editLang, setEditLang] = useState("en");
+  const [editLang, setEditLang] = useState("");
   const [editDob, setEditDob] = useState("");
   const [editTob, setEditTob] = useState("");
   const [editPlace, setEditPlace] = useState("");
-  const [editGender, setEditGender] = useState("Male");
+  const [editGender, setEditGender] = useState("");
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -158,13 +158,17 @@ export default function CustomerDashboardPage() {
 
   useEffect(() => {
     if (user) {
-      setEditName(user.fullName || "");
-      setEditEmail(user.email || "");
-      setEditLang(user.preferredLanguage || "en");
-      setEditDob(user.profile?.dateOfBirth || "");
+      const isPlaceholderName = !user.fullName || /^Devotee(\s+\w+)?$/i.test(user.fullName) || user.fullName === "Customer";
+      setEditName(isPlaceholderName ? "" : user.fullName);
+
+      const isPlaceholderEmail = !user.email || user.email.includes("@namhastro.com");
+      setEditEmail(isPlaceholderEmail ? "" : (user.email || ""));
+
+      setEditLang(user.preferredLanguage || "");
+      setEditDob((user.profile?.dateOfBirth && user.profile.dateOfBirth !== "1995-05-15") ? user.profile.dateOfBirth : "");
       setEditTob(user.profile?.timeOfBirth || "");
       setEditPlace(user.profile?.birthPlace || "");
-      setEditGender(user.profile?.gender || "Male");
+      setEditGender(user.profile?.gender || "");
       fetchBirthProfiles();
       fetchTickets();
     }
@@ -214,13 +218,14 @@ export default function CustomerDashboardPage() {
       } catch {}
     }
 
+    const userDisplayName = (user?.fullName && !/^Devotee/i.test(user.fullName) && user.fullName !== "Customer") ? user.fullName : "";
     const defaultProfiles = [
       {
         id: "bp_self",
         relation: "SELF",
-        fullName: user?.fullName || "Customer",
+        fullName: userDisplayName || "Primary Profile",
         gender: user?.profile?.gender || "Male",
-        dateOfBirth: user?.profile?.dateOfBirth || "",
+        dateOfBirth: (user?.profile?.dateOfBirth && user.profile.dateOfBirth !== "1995-05-15") ? user.profile.dateOfBirth : "",
         timeOfBirth: user?.profile?.timeOfBirth || "",
         birthPlace: user?.profile?.birthPlace || "",
         isDefault: true,
@@ -419,9 +424,39 @@ export default function CustomerDashboardPage() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
+
+    if (!editName.trim()) {
+      setProfileMsg("Full Name is required.");
+      return;
+    }
+    if (!editEmail.trim()) {
+      setProfileMsg("Email Address is required.");
+      return;
+    }
+    if (!editLang) {
+      setProfileMsg("Preferred Language is required.");
+      return;
+    }
+    if (!editGender) {
+      setProfileMsg("Gender is required.");
+      return;
+    }
+    if (!editDob) {
+      setProfileMsg("Date of Birth (DOB) is required.");
+      return;
+    }
+    if (!editTob) {
+      setProfileMsg("Time of Birth is required.");
+      return;
+    }
+    if (!editPlace.trim()) {
+      setProfileMsg("Birth Place (City, State) is required.");
+      return;
+    }
+
     const res = await updateProfile({
       fullName: editName,
-      email: editEmail || null,
+      email: editEmail,
       preferredLanguage: editLang,
       dateOfBirth: editDob,
       timeOfBirth: editTob,
@@ -500,14 +535,14 @@ export default function CustomerDashboardPage() {
                 fontSize: "1.1rem",
               }}
             >
-              {user ? user.fullName.slice(0, 2).toUpperCase() : "NA"}
+              {user && user.fullName ? user.fullName.slice(0, 2).toUpperCase() : (user?.phone ? user.phone.slice(-2) : "NA")}
             </div>
             <div>
               <strong style={{ display: "block", fontSize: "0.94rem" }}>
-                {user ? user.fullName : "Customer Account"}
+                {user && user.fullName ? user.fullName : (user?.phone || "My Account")}
               </strong>
               <span style={{ fontSize: "0.75rem", color: "var(--ink-subtle)" }}>
-                {user ? user.phone || user.email : "OTP Verification · Step 3"}
+                {user ? user.phone || user.email || "Verified Member" : "OTP Verification · Step 3"}
               </span>
             </div>
           </div>
@@ -712,7 +747,7 @@ export default function CustomerDashboardPage() {
                     <div>
                       <span className="section-eyebrow">Namaste &amp; Welcome</span>
                       <h2 className="serif-heading" style={{ fontSize: "1.5rem", color: "var(--royal-purple)" }}>
-                        {user.fullName}
+                        {user.fullName || (user.phone ? `Devotee (${user.phone})` : "Devotee")}
                       </h2>
                       <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginTop: "0.2rem" }}>
                         Phone: <strong>{user.phone || "Not set"}</strong> · Language:{" "}
@@ -803,7 +838,7 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-name-input"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Full Name
+                            Full Name <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <input
                             id="profile-name-input"
@@ -811,6 +846,7 @@ export default function CustomerDashboardPage() {
                             className="form-input"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Enter Your Full Name"
                             required
                           />
                         </div>
@@ -820,7 +856,7 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-email-input"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Email Address
+                            Email Address <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <input
                             id="profile-email-input"
@@ -828,7 +864,8 @@ export default function CustomerDashboardPage() {
                             className="form-input"
                             value={editEmail}
                             onChange={(e) => setEditEmail(e.target.value)}
-                            placeholder="name@example.com"
+                            placeholder="Enter Your Email Address"
+                            required
                           />
                         </div>
 
@@ -837,16 +874,18 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-lang-select"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Preferred Language
+                            Preferred Language <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <select
                             id="profile-lang-select"
                             className="form-select"
                             value={editLang}
                             onChange={(e) => setEditLang(e.target.value)}
+                            required
                           >
-                            <option value="en">English</option>
+                            <option value="">-- Select Language --</option>
                             <option value="hi">हिंदी (Hindi)</option>
+                            <option value="en">English</option>
                           </select>
                         </div>
 
@@ -855,14 +894,16 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-gender-select"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Gender
+                            Gender <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <select
                             id="profile-gender-select"
                             className="form-select"
                             value={editGender}
                             onChange={(e) => setEditGender(e.target.value)}
+                            required
                           >
+                            <option value="">-- Select Gender --</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                             <option value="Other">Other</option>
@@ -874,7 +915,7 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-dob-input"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Date of Birth (DOB)
+                            Date of Birth (DOB) <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <input
                             id="profile-dob-input"
@@ -882,6 +923,7 @@ export default function CustomerDashboardPage() {
                             className="form-input"
                             value={editDob}
                             onChange={(e) => setEditDob(e.target.value)}
+                            required
                           />
                         </div>
 
@@ -890,7 +932,7 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-tob-input"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Time of Birth
+                            Time of Birth <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <input
                             id="profile-tob-input"
@@ -898,6 +940,7 @@ export default function CustomerDashboardPage() {
                             className="form-input"
                             value={editTob}
                             onChange={(e) => setEditTob(e.target.value)}
+                            required
                           />
                         </div>
 
@@ -906,7 +949,7 @@ export default function CustomerDashboardPage() {
                             htmlFor="profile-place-input"
                             style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, marginBottom: "0.25rem" }}
                           >
-                            Birth Place (City, State)
+                            Birth Place (City, State) <span style={{ color: "#DC2626" }}>*</span>
                           </label>
                           <input
                             id="profile-place-input"
@@ -915,6 +958,7 @@ export default function CustomerDashboardPage() {
                             value={editPlace}
                             onChange={(e) => setEditPlace(e.target.value)}
                             placeholder="e.g. Haridwar, Uttarakhand"
+                            required
                           />
                         </div>
                       </div>

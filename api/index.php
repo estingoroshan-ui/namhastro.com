@@ -74,15 +74,15 @@ if ($path === 'auth/otp/verify' && $method === 'POST') {
         if (!empty($birthPlace)) $user['profile']['birthPlace'] = $birthPlace;
     } else {
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-        $displayName = !empty($fullName) ? $fullName : 'Devotee ' . (strlen($cleanPhone) >= 4 ? substr($cleanPhone, -4) : 'User');
+        $displayName = !empty($fullName) ? $fullName : '';
         $user = [
             'id' => $userId,
             'fullName' => $displayName,
             'phone' => $phone,
-            'email' => $cleanPhone . '@namhastro.com',
+            'email' => '',
             'role' => 'CUSTOMER',
             'status' => 'ACTIVE',
-            'preferredLanguage' => 'hi',
+            'preferredLanguage' => '',
             'wallet' => [
                 'paidBalanceInr' => 100.0,
                 'promoBalanceInr' => 50.0,
@@ -94,8 +94,8 @@ if ($path === 'auth/otp/verify' && $method === 'POST') {
                 'timeOfBirth' => $timeOfBirth,
                 'birthPlace' => $birthPlace,
                 'currentCity' => $birthPlace,
-                'gender' => 'Male',
-                'maritalStatus' => 'Single'
+                'gender' => '',
+                'maritalStatus' => ''
             ]
         ];
     }
@@ -138,12 +138,12 @@ if ($path === 'auth/me' && $method === 'GET') {
         'success' => true,
         'user' => [
             'id' => 'usr_namh_demo',
-            'fullName' => 'Devotee User',
+            'fullName' => '',
             'phone' => '+919988776655',
-            'email' => 'devotee@namhastro.com',
+            'email' => '',
             'role' => 'CUSTOMER',
             'status' => 'ACTIVE',
-            'preferredLanguage' => 'hi',
+            'preferredLanguage' => '',
             'wallet' => [
                 'paidBalanceInr' => 100.0,
                 'promoBalanceInr' => 50.0,
@@ -154,7 +154,7 @@ if ($path === 'auth/me' && $method === 'GET') {
                 'timeOfBirth' => '',
                 'birthPlace' => '',
                 'currentCity' => '',
-                'gender' => 'Male'
+                'gender' => ''
             ]
         ]
     ]);
